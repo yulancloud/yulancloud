@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f5f6f8">
+<title>安装向导 — 拾物集</title>
+<meta name="shop-api-base" content="">
+<style>
+  :root{
+    --bg:#f5f6f8; --surface:#fff; --line:rgba(18,22,28,.09); --ink:#12161c;
+    --ink-2:#4a5158; --ink-3:#7b838c; --accent:#0052d9; --ok:#0a7d43; --bad:#c0392b;
+    --radius:14px; --shadow:0 1px 2px rgba(18,22,28,.05),0 8px 28px rgba(18,22,28,.06);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.7 "Noto Sans SC",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:56px 22px 80px}
+  .brand{display:flex;align-items:baseline;gap:10px;margin-bottom:34px}
+  .brand__mark{font-size:19px;font-weight:600;letter-spacing:.02em}
+  .brand__en{font-size:11px;letter-spacing:.22em;color:var(--ink-3);text-transform:uppercase}
+  h1{font-size:27px;font-weight:600;letter-spacing:-.01em;margin:0 0 8px}
+  .sub{color:var(--ink-2);margin:0 0 30px;font-size:14.5px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:26px 26px 24px;margin-bottom:18px}
+  .card h2{font-size:15px;font-weight:600;margin:0 0 16px;letter-spacing:.01em}
+  .checks{list-style:none;margin:0;padding:0}
+  .checks li{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .checks li:last-child{border-bottom:0}
+  .dot{flex:0 0 auto;width:17px;height:17px;border-radius:50%;margin-top:3px;display:grid;place-items:center;font-size:11px;color:#fff;font-weight:700}
+  .dot--ok{background:var(--ok)}
+  .dot--bad{background:var(--bad)}
+  .hint{color:var(--ink-3);font-size:12.5px;margin-left:auto;text-align:right;max-width:52%}
+  label{display:block;font-size:13px;font-weight:500;color:var(--ink-2);margin:0 0 6px}
+  input[type=text],input[type=password]{
+    width:100%;padding:11px 13px;font:inherit;font-size:14.5px;color:var(--ink);
+    background:#fbfcfd;border:1px solid var(--line);border-radius:10px;outline:none;
+    transition:box-shadow .18s,border-color .18s;
+  }
+  input:focus{border-color:rgba(0,82,217,.45);box-shadow:0 0 0 3px rgba(0,82,217,.12)}
+  .field{margin-bottom:16px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:560px){.row{grid-template-columns:1fr}}
+  .meter{height:4px;border-radius:2px;background:#e8ebef;margin-top:8px;overflow:hidden}
+  .meter i{display:block;height:100%;width:0;background:var(--bad);transition:width .25s,background .25s}
+  .meter i.s2{background:#d68910}.meter i.s3{background:#2e86c1}.meter i.s4{background:var(--ok)}
+  .tip{font-size:12.5px;color:var(--ink-3);margin-top:7px}
+  button{
+    width:100%;padding:13px;font:inherit;font-size:15px;font-weight:600;color:#fff;
+    background:var(--accent);border:0;border-radius:10px;cursor:pointer;
+    transition:opacity .18s,transform .12s;
+  }
+  button:hover{opacity:.92}
+  button:active{transform:translateY(1px)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .msg{margin-top:14px;padding:11px 13px;border-radius:9px;font-size:13.5px;display:none}
+  .msg--bad{display:block;background:#fdf1f0;color:#8e2b20;border:1px solid #f3d3cf}
+  .msg--ok{display:block;background:#eef8f2;color:#0a5c33;border:1px solid #cfe9db}
+  .done{text-align:center;padding:14px 0 4px}
+  .done .big{font-size:44px;line-height:1;margin-bottom:14px}
+  .done h2{font-size:20px;margin:0 0 10px}
+  .done p{color:var(--ink-2);font-size:14px;margin:0 0 20px}
+  .done a.btn{
+    display:inline-block;padding:12px 26px;background:var(--accent);color:#fff;
+    text-decoration:none;border-radius:10px;font-weight:600;font-size:14.5px;
+  }
+  .foot{color:var(--ink-3);font-size:12.5px;text-align:center;margin-top:26px}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <span class="brand__mark">拾物集</span>
+    <span class="brand__en">SHIWU · Installer</span>
+  </div>
+
+  <!-- ============ 已安装 ============ -->
+  <section id="view-installed" class="hidden">
+    <div class="card">
+      <div class="done">
+        <div class="big">🔒</div>
+        <h2>站点已完成安装</h2>
+        <p>安装程序已锁定，无法重复执行。<br>如需重新安装，请手动删除服务器上的 <code>config/installed.lock</code> 与数据库文件。</p>
+        <a class="btn" id="admin-link" href="/admin/">前往后台登录</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 安装向导 ============ -->
+  <section id="view-install" class="hidden">
+    <h1>安装向导</h1>
+    <p class="sub">三步完成初始化：环境自检 → 创建管理员 → 写入安装锁。安装完成后本入口将自动锁定。</p>
+
+    <div class="card">
+      <h2>1 · 运行环境自检</h2>
+      <ul class="checks" id="checks"></ul>
+    </div>
+
+    <div class="card">
+      <h2>2 · 站点与支付配置</h2>
+      <div class="field">
+        <label for="site">站点地址</label>
+        <input type="text" id="site" name="site_url" placeholder="https://pay.example.com" autocomplete="off" spellcheck="false">
+        <div class="tip">用于生成支付回调地址，必须与浏览器访问的地址一致（含 https://，结尾不要带 /）</div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="pid">易支付 PID</label>
+          <input type="text" id="pid" name="epay_pid" placeholder="商户 ID" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field">
+          <label for="key">易支付 KEY</label>
+          <input type="password" id="key" name="epay_key" placeholder="商户密钥" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="field">
+        <label for="gw">易支付网关地址</label>
+        <input type="text" id="gw" name="epay_gateway" placeholder="https://pay.example.com/submit.php" autocomplete="off" spellcheck="false">
+        <div class="tip">留空则暂不启用在线支付，只保留余额支付；之后可在 config/.env 里补填</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3 · 创建管理员账号</h2>
+      <form id="form" autocomplete="off">
+        <div class="field">
+          <label for="u">管理员账号</label>
+          <input type="text" id="u" name="username" placeholder="例如 shopowner" autocomplete="off" spellcheck="false">
+          <div class="tip">3–32 位，仅限字母、数字、下划线、点、短横</div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="p">密码</label>
+            <input type="password" id="p" name="password" placeholder="至少 10 位" autocomplete="new-password">
+            <div class="meter"><i id="meter"></i></div>
+          </div>
+          <div class="field">
+            <label for="p2">确认密码</label>
+            <input type="password" id="p2" name="password2" placeholder="再输一次" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="tip" style="margin-bottom:18px">
+          密码要求：至少 10 位，且同时包含字母和数字（与后端校验规则一致）。
+          密码以 Argon2id 哈希存储，不会明文保存。
+        </div>
+        <button type="submit" id="submit">开始安装</button>
+        <div class="msg" id="msg"></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>4 · 安装锁</h2>
+      <p style="margin:0;font-size:14px;color:var(--ink-2)">
+        安装成功后会在 <code>config/installed.lock</code> 写入锁文件（权限 0600，位于 Web 根之外；
+        命令行以 root 安装时会自动移交给 Web 服务用户，避免 FPM 读不到而误判未安装）。
+        此后访问本页面会提示「已安装」并拒绝再次执行，防止站点被重复初始化。
+      </p>
+    </div>
+  </section>
+
+  <p class="foot">拾物集 SHIWU · PHP + SQLite 本地数据库</p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* 接口基址：与前台 api.js 同一套探测逻辑（支持子目录部署） */
+  function detectApiBase() {
+    if (typeof window.SHOP_API_BASE === 'string' && window.SHOP_API_BASE) {
+      return window.SHOP_API_BASE.replace(/\/+$/, '');
+    }
+    var meta = document.querySelector('meta[name="shop-api-base"]');
+    if (meta && meta.getAttribute('content')) {
+      return meta.getAttribute('content').replace(/\/+$/, '');
+    }
+    var path = location.pathname || '/';
+    var dir = path.replace(/[^/]*$/, '').replace(/\/+$/, '');
+    // /install/ 是虚拟目录路由，真实文件是站点根下的 install.html。
+    // 不剥掉这一段会拼出 /install/api → 请求 /install/api/install/status 被 nginx 当
+    // 静态文件找 public/install/api/... → 404（表现为「无法读取安装状态」）。
+    // 同理兼容 /admin/ 与 /console/，并支持子目录部署 /shop/install/ → /shop/api。
+    dir = dir.replace(/\/(install|admin|console)$/, '');
+    return dir + '/api';
+  }
+  var API = detectApiBase();
+
+  // 「前往后台登录」必须按部署前缀拼绝对路径：
+  // 页面 URL 是 /install/（虚拟目录），写成相对 "admin/" 会跳成 /install/admin/ → 404。
+  (function () {
+    var link = document.getElementById('admin-link');
+    if (link) link.href = API.replace(/\/api$/, '') + '/admin/';
+  })();
+
+  function req(method, path, body) {
+    var opt = { method: method, headers: { 'Accept': 'application/json' }, credentials: 'same-origin' };
+    if (body !== undefined) {
+      opt.headers['Content-Type'] = 'application/json';
+      opt.body = JSON.stringify(body);
+    }
+    return fetch(API + path, opt).then(function (res) {
+      return res.text().then(function (raw) {
+        var j = null;
+        try { j = raw ? JSON.parse(raw) : null; } catch (e) { j = null; }
+        if (!res.ok || !j || j.ok !== true) {
+          var msg;
+          var ct = res.headers.get('content-type') || '(无)';
+          // 响应体不是合法 JSON：把**实际返回的前 200 字符**贴出来，方便一眼定位
+          // 到底是 PHP 警告污染、Nginx 返回了 HTML、还是把 .php 当静态文件返回了源码。
+          var snippet = raw ? raw.slice(0, 200).replace(/\s+/g, ' ') : '(空响应体)';
+          if (j && j.error && j.error.message) {
+            msg = j.error.message;
+          } else if (!j) {
+            msg = '接口返回的不是 JSON（HTTP ' + res.status + '，Content-Type: ' + ct + '）。'
+                + '响应体前 200 字符：' + snippet;
+          } else if (res.status === 500 || res.status === 503) {
+            // 非 JSON 的 5xx：几乎都是 PHP 致命错误 / 版本守卫拦截，把状态码说清楚
+            msg = '服务器返回 HTTP ' + res.status + '（PHP 未能正常执行）。'
+                + '请检查 PHP 版本是否 ≥ 8.1、pdo_sqlite 扩展是否启用，并查看 PHP 错误日志。';
+          } else if (res.status === 404) {
+            msg = '接口地址不存在（HTTP 404）：服务器未把 /api/* 转发到 PHP，请检查伪静态配置。';
+          } else {
+            msg = 'HTTP ' + res.status;
+          }
+          var e = new Error(msg);
+          e.code = j && j.error ? j.error.code : 'http_' + res.status;
+          e.status = res.status;
+          e.raw = raw;
+          e.contentType = ct;
+          throw e;
+        }
+        return j.data;
+      });
+    });
+  }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var viewInstall = $('view-install');
+  var viewInstalled = $('view-installed');
+
+  function showMsg(text, ok) {
+    var m = $('msg');
+    m.textContent = text;
+    m.className = 'msg ' + (ok ? 'msg--ok' : 'msg--bad');
+  }
+
+  function renderChecks(list) {
+    var ul = $('checks');
+    ul.innerHTML = '';
+    (list || []).forEach(function (c) {
+      var li = document.createElement('li');
+      var dot = document.createElement('span');
+      dot.className = 'dot ' + (c.ok ? 'dot--ok' : 'dot--bad');
+      dot.textContent = c.ok ? '✓' : '!';
+      var label = document.createElement('span');
+      label.textContent = c.label;
+      var hint = document.createElement('span');
+      hint.className = 'hint';
+      hint.textContent = c.hint || '';
+      li.appendChild(dot); li.appendChild(label); li.appendChild(hint);
+      ul.appendChild(li);
+    });
+  }
+
+  /* 密码是否合规：必须与后端 AdminAuth::passwordProblem 完全一致
+     （≥10 位、≤200 位、同时含字母和数字）。
+     原实现额外要求「四类字符中至少三类」，会把后端合法的密码挡在门外。 */
+  function pwOk(pw) {
+    if (!pw || pw.length < 10 || pw.length > 200) return false;
+    return /[A-Za-z]/.test(pw) && /[0-9]/.test(pw);
+  }
+
+  /* 强度条仅作视觉反馈，不参与可否提交 */
+  function strength(pw) {
+    if (!pw) return 0;
+    var kinds = 0;
+    if (/[a-z]/.test(pw)) kinds++;
+    if (/[A-Z]/.test(pw)) kinds++;
+    if (/[0-9]/.test(pw)) kinds++;
+    if (/[^A-Za-z0-9]/.test(pw)) kinds++;
+    if (pw.length < 10) return 1;
+    if (kinds <= 1) return 1;
+    if (kinds === 2) return 2;
+    if (kinds === 3) return 3;
+    return 4;
+  }
+
+  $('p').addEventListener('input', function () {
+    var s = strength(this.value);
+    var bar = $('meter');
+    bar.style.width = (s * 25) + '%';
+    bar.className = s >= 4 ? 's4' : (s === 3 ? 's3' : (s === 2 ? 's2' : ''));
+  });
+
+  function boot() {
+    req('GET', '/install/status').then(function (d) {
+      if (d.installed) {
+        viewInstalled.classList.remove('hidden');
+        return;
+      }
+      viewInstall.classList.remove('hidden');
+      renderChecks(d.requirements);
+      // 后端仍返回 install_token_ready，但安装不再强制密钥，故不在此提示
+      if (!d.requirements_ok) {
+        showMsg('运行环境未通过自检，请先按上方提示修复后再安装。', false);
+        $('submit').disabled = true;
+      }
+    }).catch(function (err) {
+      viewInstall.classList.remove('hidden');
+      showMsg('无法读取安装状态：' + err.message, false);
+      $('submit').disabled = true;
+    });
+  }
+
+  $('form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var u = $('u').value.trim();
+    var p = $('p').value;
+    var p2 = $('p2').value;
+
+    if (!/^[A-Za-z0-9_.\-]{3,32}$/.test(u)) {
+      showMsg('账号格式不正确：3–32 位，仅限字母、数字、下划线、点、短横。', false);
+      return;
+    }
+    if (p !== p2) {
+      showMsg('两次输入的密码不一致。', false);
+      return;
+    }
+    if (!pwOk(p)) {
+      showMsg('密码不符合要求：至少 10 位，且同时包含字母和数字。', false);
+      return;
+    }
+
+    var btn = $('submit');
+    btn.disabled = true;
+    btn.textContent = '安装中…';
+    showMsg('正在创建数据库与管理员账号…', true);
+
+    req('POST', '/install', {
+      username: u,
+      password: p,
+      site_url: ($('site') ? $('site').value.trim() : ''),
+      epay_pid: ($('pid') ? $('pid').value.trim() : ''),
+      epay_key: ($('key') ? $('key').value : ''),
+      epay_gateway: ($('gw') ? $('gw').value.trim() : '')
+    }).then(function (d) {
+      viewInstall.classList.add('hidden');
+      viewInstalled.classList.remove('hidden');
+      var link = document.querySelector('#view-installed a.btn');
+      if (link && d && d.admin_url) link.setAttribute('href', d.admin_url);
+      var h2 = document.querySelector('#view-installed h2');
+      if (h2) h2.textContent = '安装完成';
+      var pEl = document.querySelector('#view-installed p');
+      if (pEl) {
+        pEl.textContent = '管理员账号已创建，安装锁已写入。请用刚才设置的账号密码登录后台。';
+      }
+    }).catch(function (err) {
+      btn.disabled = false;
+      btn.textContent = '开始安装';
+      showMsg('安装失败：' + err.message, false);
+    });
+  });
+
+  boot();
+})();
+</script>
+</body>
+</html>

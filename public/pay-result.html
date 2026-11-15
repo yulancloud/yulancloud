@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>支付结果 — 拾物集</title>
+<meta name="theme-color" content="#f5f6f8">
+<link rel="stylesheet" href="assets/style.css?v=20261114i">
+</head>
+<body>
+
+<header class="head">
+  <div class="head__in">
+    <a class="brand" href="index.html" aria-label="拾物集 首页">
+      <span class="brand__mark" data-site="name">拾物集</span>
+      <span class="brand__en" data-site="name-en">SHIWU</span>
+      <span class="brand__dot" aria-hidden="true"></span>
+    </a>
+    <span class="head__spacer"></span>
+    <button class="icon-btn" data-theme-toggle type="button" aria-label="切换到暗色模式"></button>
+    <a class="cart-pill" href="cart.html">
+      <svg class="ico ico--lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 7.6h1.9l1.5 8.2h9.1l1.5-6.1H7"/><circle cx="9.6" cy="19" r="1.25"/><circle cx="16.3" cy="19" r="1.25"/></svg>
+      <span>购物袋</span>
+      <span class="cart-pill__n" data-cart-count>0</span>
+    </a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div style="padding:clamp(30px,5vw,64px) 0 clamp(50px,7vw,90px);max-width:620px;margin:0 auto;">
+    <p class="eyebrow">PAYMENT · 支付</p>
+    <h1 class="h2" style="margin-top:10px;">支付结果</h1>
+
+    <div class="cart-list" id="result-panel" style="margin-top:22px;">
+      <div class="empty">
+        <div class="empty__ico">
+          <svg class="ico ico--lg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.4"/><path d="M12 8.2v.5M11.5 11.2h.5v4.4"/></svg>
+        </div>
+        <h3>正在确认支付结果…</h3>
+        <p>请稍候，不要关闭本页。</p>
+      </div>
+    </div>
+
+    <div class="summary__note" style="margin-top:16px;">
+      支付结果以支付平台的异步通知为准。若本页显示「待确认」，通常几秒后会自动更新；
+      也可以回到订单详情页手动刷新。
+    </div>
+  </div>
+</main>
+
+<div class="toast-zone" id="toast-zone" aria-live="polite"></div>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__bottom">
+      <span data-site="footer-copyright">© 2026 拾物集 SHIWU · 后端为 PHP + SQLite 本地数据库实现</span>
+      <span data-site="footer-icp">沪 ICP 备 0000000 号</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/data.js?v=20261114i"></script>
+<script src="assets/api.js?v=20261114i"></script>
+<script src="assets/app.js?v=20261114i"></script>
+<script>
+window.shopBoot(function () {
+  'use strict';
+  var U = window.Shiwu;
+  var panel = document.getElementById('result-panel');
+  var params = new URLSearchParams(location.search);
+
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function money(cents) {
+    return '¥' + (Number(cents) / 100).toLocaleString('en-US', {
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+  }
+
+  /* 从 URL 里取订单号与凭证：
+     - 易支付同步返回会带 out_trade_no（形如 ORDERNO-XXXXXX）
+     - 我们自己的跳转带 no / token
+     凭证无法从网关拿回，所以优先用本地保存的「最近订单」记录。 */
+  var no = params.get('no') || '';
+  var token = params.get('token') || '';
+
+  var outTradeNo = params.get('out_trade_no') || '';
+  if (!no && /^[A-Z0-9]{8,32}-[A-F0-9]{6}$/.test(outTradeNo)) {
+    no = outTradeNo.slice(0, outTradeNo.lastIndexOf('-'));
+  }
+
+  // 本地兜底：下单时把 {no, token} 存进 localStorage，支付返回后取回
+  if (!token) {
+    try {
+      var saved = JSON.parse(localStorage.getItem('shiwu-last-order') || 'null');
+      if (saved && saved.no === no && saved.token) token = saved.token;
+    } catch (e) { /* 忽略 */ }
+  }
+
+  function box(kind, title, sub, extraHtml) {
+    var icon = kind === 'ok'
+      ? '<path d="M5 12.6l4.2 4.2L19 7"/>'
+      : (kind === 'wait'
+        ? '<circle cx="12" cy="12" r="8.4"/><path d="M12 8v4.4l3 1.8"/>'
+        : '<circle cx="12" cy="12" r="8.4"/><path d="M12 8.2v.5M11.5 11.2h.5v4.4"/>');
+    var color = kind === 'ok' ? 'var(--accent)' : (kind === 'wait' ? 'var(--ink-2)' : '#c0463f');
+    panel.innerHTML =
+      '<div class="empty">' +
+        '<div class="empty__ico" style="color:' + color + '">' +
+          '<svg class="ico ico--lg" viewBox="0 0 24 24" aria-hidden="true">' + icon + '</svg>' +
+        '</div>' +
+        '<h3>' + esc(title) + '</h3>' +
+        '<p>' + esc(sub) + '</p>' +
+        (extraHtml || '') +
+      '</div>';
+  }
+
+  if (!/^[A-Z0-9]{8,32}$/.test(no)) {
+    box('bad', '无法确认订单', '链接里没有有效的订单号。请从订单详情页查看支付状态。',
+      '<div style="margin-top:16px;"><a class="btn btn--sm btn--primary" href="index.html#shelf">回到货架</a></div>');
+    return;
+  }
+
+  if (!/^[a-f0-9]{32}$/.test(token)) {
+    box('wait', '支付已提交，请稍后确认', '订单号 ' + no + '。缺少查询凭证，无法在本页自动确认状态。',
+      '<div style="margin-top:16px;display:grid;gap:8px;">' +
+        '<a class="btn btn--sm btn--primary" href="index.html#shelf">回到货架</a>' +
+      '</div>');
+    return;
+  }
+
+  var tries = 0;
+  var MAX_TRIES = 10;   // 约 30 秒
+
+  function check() {
+    tries++;
+    window.ShopAPI.getOrder(no, token).then(function (o) {
+      if (o.status === 'paid' || o.status === 'shipped' || o.status === 'done') {
+        box('ok', '支付成功', '订单 ' + o.order_no + ' 已确认收款，金额 ' + money(o.total) + '。',
+          '<div style="margin-top:16px;display:grid;gap:8px;">' +
+            '<a class="btn btn--sm btn--primary" href="order.html?no=' + encodeURIComponent(no) +
+              '&token=' + encodeURIComponent(token) + '">查看订单详情</a>' +
+            '<a class="btn btn--sm btn--ghost" href="index.html#shelf">继续挑选</a>' +
+          '</div>');
+        return;
+      }
+      if (o.status === 'cancelled') {
+        box('bad', '订单已关闭', '该订单已取消，未完成支付。如需购买请重新下单。',
+          '<div style="margin-top:16px;"><a class="btn btn--sm btn--primary" href="index.html#shelf">重新挑选</a></div>');
+        return;
+      }
+      // 仍是 pending：继续等异步通知
+      if (tries < MAX_TRIES) {
+        box('wait', '正在确认支付结果…', '已等待 ' + tries + ' 次，通常几秒内完成。请勿关闭本页。');
+        setTimeout(check, 3000);
+      } else {
+        box('wait', '暂未收到支付确认', '如果你已完成付款，可能是支付平台通知稍有延迟。',
+          '<div style="margin-top:16px;display:grid;gap:8px;">' +
+            '<a class="btn btn--sm btn--primary" href="order.html?no=' + encodeURIComponent(no) +
+              '&token=' + encodeURIComponent(token) + '">到订单页刷新</a>' +
+            '<a class="btn btn--sm btn--ghost" href="index.html#shelf">回到货架</a>' +
+          '</div>');
+      }
+    }).catch(function (err) {
+      box('bad', '无法查询订单', err.message || '凭证可能已失效。',
+        '<div style="margin-top:16px;"><a class="btn btn--sm btn--primary" href="index.html#shelf">回到货架</a></div>');
+    });
+  }
+
+  check();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head><script data-tmly-media-guard="1">(function(){"use strict";
+var T=window.__tmly||(window.__tmly=(function(){
+var o={},n=String(window.name||"");
+if(n.slice(0,5)==="tmly:"){n.slice(5).split("&").forEach(function(kv){
+var i=kv.indexOf("=");if(i>0){o[kv.slice(0,i)]=kv.slice(i+1)}})}
+return o})());
+if(T.presentation!=="preview"){return}
+var K="tmly:media-muted:"+String(location.pathname).replace(/[^/]*$/,"");
+var muted=false;try{muted=localStorage.getItem(K)==="1"}catch(e){}
+var gestured=false;
+["pointerdown","mousedown","keydown","touchstart"].forEach(function(t){
+document.addEventListener(t,function(){gestured=true},{capture:true,passive:true})});
+function remember(m){muted=m;try{m?localStorage.setItem(K,"1"):localStorage.removeItem(K)}catch(e){}}
+function announcePaused(el){try{el.dispatchEvent(new Event("pause"))}catch(e){}}
+function harden(el){
+el.autoplay=false;el.removeAttribute("autoplay");
+if(el.getAttribute("preload")==="auto"){el.setAttribute("preload","none")}
+if(muted){el.muted=true}
+if(!gestured&&!el.paused){try{el.pause()}catch(e){}}}
+var play=HTMLMediaElement.prototype.play;
+HTMLMediaElement.prototype.play=function(){
+if(!gestured){announcePaused(this);
+return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false);this.muted=false}
+return play.apply(this,arguments)};
+var acProtos=[];
+function guardAC(n){
+var N=window[n];if(!N||!N.prototype){return}
+if(acProtos.indexOf(N.prototype)<0){acProtos.push(N.prototype);
+var res=N.prototype.resume;
+if(typeof res==="function"){N.prototype.resume=function(){
+if(!gestured){return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false)}
+return res.apply(this,arguments)}}}
+var W=function(o){var c=arguments.length?new N(o):new N();
+if(!gestured){try{c.suspend()}catch(e){}}return c};
+W.prototype=N.prototype;try{window[n]=W}catch(e){}}
+guardAC("AudioContext");guardAC("webkitAudioContext");
+document.addEventListener("play",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&!gestured){try{el.pause()}catch(err){}}},true);
+document.addEventListener("pause",function(e){
+if(e.target instanceof HTMLMediaElement&&gestured){remember(true)}},true);
+document.addEventListener("volumechange",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&gestured){remember(el.muted||el.volume===0)}},true);
+function sweep(n){if(n&&n.querySelectorAll){var l=n.querySelectorAll("audio,video");
+for(var i=0;i<l.length;i++){harden(l[i])}}}
+new MutationObserver(function(rs){for(var i=0;i<rs.length;i++){var a=rs[i].addedNodes;
+for(var j=0;j<a.length;j++){var n=a[j];
+if(n instanceof HTMLMediaElement){harden(n)}else{sweep(n)}}}})
+.observe(document.documentElement,{childList:true,subtree:true});
+document.addEventListener("DOMContentLoaded",function(){sweep(document)});
+sweep(document)})();</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f5f6f8">
+<title data-site-title>拾物集 SHIWU — 少而耐的日用器物</title>
+<meta name="description" content="拾物集是一个只做少量品类的日用器物小店：手工陶瓷、木作、黄铜与亚麻。每件物品都能用很久。">
+<meta name="shop-api-base" content="">
+<link rel="stylesheet" href="assets/style.css?v=20261114i">
+</head>
+<body>
+
+<!-- ================= 顶栏 ================= -->
+<header class="head">
+  <div class="head__in">
+    <a class="brand" href="index.html" aria-label="拾物集 首页">
+      <span class="brand__mark" data-site="name">拾物集</span>
+      <span class="brand__en" data-site="name-en">SHIWU</span>
+      <span class="brand__dot" aria-hidden="true"></span>
+    </a>
+
+    <nav class="nav" aria-label="主导航">
+      <a href="index.html" aria-current="page">全部器物</a>
+      <a href="index.html#cat-live">家居</a>
+      <a href="index.html#cat-desk">桌面</a>
+      <a href="index.html#cat-carry">随行</a>
+      <a href="#shelf" data-featured-link>精选器物</a>
+    </nav>
+
+    <span class="head__spacer"></span>
+
+    <label class="search" for="q">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="M15.4 15.4L20 20"/></svg>
+      <input id="q" type="search" placeholder="搜索器物 / 材质" autocomplete="off" aria-label="搜索器物">
+    </label>
+
+    <button class="icon-btn" data-theme-toggle type="button" aria-label="切换到暗色模式"></button>
+
+    <a class="icon-btn" href="console/" aria-label="用户中心" title="用户中心" style="display:inline-flex;align-items:center;justify-content:center">
+      <svg class="ico ico--lg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.4" r="3.4"/><path d="M5 19.4c0-3.4 3.1-5.6 7-5.6s7 2.2 7 5.6"/></svg>
+    </a>
+
+    <a class="cart-pill" href="cart.html">
+      <svg class="ico ico--lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 7.6h1.9l1.5 8.2h9.1l1.5-6.1H7"/><circle cx="9.6" cy="19" r="1.25"/><circle cx="16.3" cy="19" r="1.25"/></svg>
+      <span>购物袋</span>
+      <span class="cart-pill__n" data-cart-count>0</span>
+    </a>
+  </div>
+</header>
+
+<main>
+  <!-- 公告条（后台可配，空则隐藏） -->
+  <div class="wrap" style="padding-top:14px">
+    <div class="notice-bar" data-site-block="notice" hidden>
+      <span class="notice-bar__dot" aria-hidden="true"></span>
+      <span data-site="home-notice"></span>
+    </div>
+  </div>
+
+  <!-- ================= 首屏 ================= -->
+  <section class="hero">
+    <div class="wrap hero__grid">
+      <div class="hero__copy">
+        <p class="eyebrow eyebrow--accent" data-site="hero-eyebrow">EST. 2019 · 上海静安</p>
+
+        <h1 class="display" data-site="hero-title" data-site-stream="hero-title" data-stream="只做少数几种，做得久一点。" data-speed="46" data-caret></h1>
+
+        <p class="lede" data-site="hero-subtitle" data-site-stream="hero-subtitle" data-stream="八件日用器物，来自六个小工坊。我们不追新款，只把同一件东西反复改到不用再改——让人用得顺手，也舍得一直用。" data-speed="15"></p>
+
+        <div class="hero__actions">
+          <a class="btn btn--primary" href="#shelf">
+            浏览全部器物
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6.8L18.2 12 13 17.2"/></svg>
+          </a>
+          <a class="btn btn--ghost" href="#shelf" data-featured-link id="hero-btn" hidden>
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.4"/><path d="M12 8.2v.6M11.4 11.4h.6v4.4"/></svg>
+            看一件代表作
+          </a>
+        </div>
+
+      </div>
+
+      <div class="hero__stage" data-reveal id="hero-stage" hidden>
+        <div class="stage-card">
+          <span class="tick tick--tl" aria-hidden="true"></span>
+          <span class="tick tick--br" aria-hidden="true"></span>
+          <div class="stage-card__img">
+            <img id="hero-img" alt="" width="1024" height="1024">
+          </div>
+          <div class="stage-card__foot">
+            <div>
+              <div class="stage-card__name" id="hero-name"></div>
+              <div class="stage-card__meta" id="hero-meta"></div>
+            </div>
+            <div class="stage-card__price num" id="hero-price"></div>
+          </div>
+        </div>
+        <div class="float-chip">
+          <span class="float-chip__pulse" aria-hidden="true"></span>
+          今日 16:00 前下单，当日发出
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 信息条 ================= -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee__track" id="marquee"></div>
+  </div>
+
+  <!-- ================= 商品货架 ================= -->
+  <section class="section" id="shelf">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-head__left">
+          <p class="eyebrow">THE SHELF · 在售</p>
+          <h2 class="h2" data-stream="八件在售器物，每一件都写清了缺陷。" data-speed="22"></h2>
+        </div>
+        <p class="lede" style="max-width:300px;margin:0 0 4px;">
+          点击器物进入详情页，挑选规格后加入购物袋或立即购买。
+        </p>
+      </div>
+
+      <div class="filters">
+        <div class="chips" role="tablist" aria-label="分类筛选" id="chips"></div>
+        <div style="display:flex;align-items:center;gap:9px;">
+          <span class="tiny" id="result-count">共 8 件</span>
+          <select class="select" id="sort" aria-label="排序方式">
+            <option value="featured">推荐排序</option>
+            <option value="price-asc">价格从低到高</option>
+            <option value="price-desc">价格从高到低</option>
+            <option value="rating">评分优先</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid" id="grid"></div>
+
+      <div id="empty-state" class="empty" hidden>
+        <div class="empty__ico">
+          <svg class="ico ico--lg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="M15.4 15.4L20 20"/></svg>
+        </div>
+        <h3>没有找到相符的器物</h3>
+        <p>换个关键词，或清空筛选条件再看看。</p>
+        <div style="margin-top:16px;">
+          <button class="btn btn--sm btn--ghost" id="reset-filter" type="button">清空筛选</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 三条承诺 ================= -->
+  <section class="section--tight">
+    <div class="wrap">
+      <div class="promise-grid">
+        <article class="promise" data-reveal>
+          <span class="promise__no num">01</span>
+          <h3 class="h3">先讲缺陷，再讲优点</h3>
+          <p>每件器物的详情页里都有一栏「已知不足」。手工的东西都有痕迹，我们把它写出来，而不是等你收到才发现。</p>
+        </article>
+        <article class="promise" data-reveal>
+          <span class="promise__no num">02</span>
+          <h3 class="h3">不做过季的生意</h3>
+          <p>八款在售，卖完补同款，不做季节限定。你在明年买的杯子，和今年这只应该是同一只。</p>
+        </article>
+        <article class="promise" data-reveal>
+          <span class="promise__no num">03</span>
+          <h3 class="h3">坏了可以寄回来</h3>
+          <p>非人为损坏，两年内免费修；修不了就换。寄回的运费我们承担一半。</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast-zone" id="toast-zone" aria-live="polite"></div>
+
+<!-- ================= 页脚 ================= -->
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div>
+        <a class="brand" href="index.html">
+          <span class="brand__mark" data-site="name">拾物集</span>
+          <span class="brand__en" data-site="name-en">SHIWU</span>
+        </a>
+      </div>
+      <div>
+        <h4>选购</h4>
+        <ul>
+          <li><a href="index.html#shelf">全部器物</a></li>
+          <li><a href="index.html#cat-live">家居</a></li>
+          <li><a href="index.html#cat-desk">桌面</a></li>
+          <li><a href="index.html#cat-carry">随行</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>服务</h4>
+        <ul>
+          <li><a href="#" data-copy="support@shiwu.example" data-site-copy="support_email" data-copy-label>复制客服邮箱</a></li>
+          <li><a href="#">配送与时效</a></li>
+          <li><a href="#">退换与保修</a></li>
+          <li><a href="#">到店自提</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot__bottom">
+      <span data-site="footer-copyright">© 2026 拾物集 SHIWU</span>
+      <span data-site="footer-icp">沪 ICP 备 0000000 号</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/data.js?v=20261114i"></script>
+<script src="assets/api.js?v=20261114i"></script>
+<script src="assets/app.js?v=20261114i"></script>
+<script>
+/* 数据就绪后再渲染：api.js 会先用 /api/catalog 覆盖静态数据，失败则回退 data.js */
+window.shopBoot(function () {
+  'use strict';
+  var S = window.SHOP, U = window.Shiwu;
+
+  /* ---- 首屏代表作：只用真实在售商品，不再展示写死的演示宣传图 ----
+     后台商品没填图片地址时，整块直接隐藏，避免出现旧演示图 / 破图。 */
+  (function () {
+    var stage = document.getElementById('hero-stage');
+    var btn = document.getElementById('hero-btn');
+    if (!stage) return;
+    var list = Array.isArray(S.products) ? S.products : [];
+    var pick = null;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].img && String(list[i].img).trim()) { pick = list[i]; break; }
+    }
+    if (!pick) {
+      stage.hidden = true;
+      if (btn) btn.hidden = true;
+      return;
+    }
+    var href = 'product.html?id=' + encodeURIComponent(pick.id);
+    var im = document.getElementById('hero-img');
+    if (im) { im.src = pick.img; im.alt = pick.name || ''; }
+    var nm = document.getElementById('hero-name');
+    if (nm) nm.textContent = pick.name || '';
+    var mt = document.getElementById('hero-meta');
+    if (mt) mt.textContent = [pick.sku, pick.sub].filter(Boolean).join(' · ');
+    var pr = document.getElementById('hero-price');
+    if (pr) pr.textContent = '¥' + pick.price;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-featured-link]'), function (a) {
+      a.setAttribute('href', href);
+      if (a.id === 'hero-btn') a.hidden = false;
+    });
+    var card = stage.querySelector('.stage-card');
+    if (card) {
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', function () { location.href = href; });
+    }
+    stage.hidden = false;
+    // data-reveal 元素初始是 hidden（opacity:0），观察器在页面启动时扫不到它，
+    // 显示后须手动补 .in，否则会一直保持全透明（与之前评论区「看起来没加载」同源）。
+    stage.classList.add('in');
+  })();
+
+  /* ---- 信息条 ---- */
+  var track = document.getElementById('marquee');
+  // 旧的默认信息条写死了「顺丰包邮 / 满 ¥299」。运费现在由后台「运费设置」决定，
+  // 这里把带包邮/运费字样的条目改写成当前生效规则，避免文案与结算金额对不上。
+  var shipSite = window.SHOP_SITE || {};
+  var shipFeeYuan = Number.isFinite(shipSite.ship_fee_cents) ? shipSite.ship_fee_cents / 100 : 12;
+  var freeYuan = Number.isFinite(shipSite.free_ship_threshold_cents) ? shipSite.free_ship_threshold_cents / 100 : 299;
+  var shipNote = shipFeeYuan === 0 ? '全场包邮'
+               : (freeYuan > 0 ? '满 ¥' + freeYuan + ' 包邮' : '运费 ¥' + shipFeeYuan);
+  var items = S.marquee.map(function (m) {
+    var a = String(m[0] || ''), b = String(m[1] || '');
+    if (a.indexOf('包邮') !== -1 || a.indexOf('运费') !== -1 || b.indexOf('¥299') !== -1) {
+      a = '配送运费';
+      b = shipNote;
+    }
+    return '<span class="marquee__item"><b>' + U.esc(a) + '</b>' + U.esc(b) + '</span>';
+  }).join('');
+  track.innerHTML = items + items; // 复制一份，实现无缝循环
+
+  /* ---- 分类 chips ---- */
+  var chipsEl = document.getElementById('chips');
+  var state = { cat: 'all', q: '', sort: 'featured' };
+
+  function paintChips() {
+    var counts = { all: S.products.length };
+    S.products.forEach(function (p) { counts[p.cat] = (counts[p.cat] || 0) + 1; });
+    chipsEl.innerHTML = S.categories.map(function (c) {
+      return '<button class="chip" role="tab" type="button" data-cat="' + U.esc(c.id) + '" aria-selected="' +
+        (state.cat === c.id) + '">' + U.esc(c.label) +
+        '<b>' + String(counts[c.id] || 0).padStart(2, '0') + '</b></button>';
+    }).join('');
+  }
+
+  /* ---- 商品卡 ---- */
+  var grid = document.getElementById('grid');
+  var resultEl = document.getElementById('result-count');
+  var emptyEl = document.getElementById('empty-state');
+
+  function stars(r) {
+    var s = '';
+    for (var i = 0; i < 5; i++) {
+      s += '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="opacity:' +
+        (i < Math.round(r) ? 1 : 0.26) + '"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>';
+    }
+    return s;
+  }
+
+  function card(p) {
+    // 商品名/副标题/角标/图片均由后台可编辑，拼进 innerHTML 前必须转义，
+    // 否则后台商品名里塞 <img onerror=...> 会在首页直接执行（存储型 XSS）。
+    var e = U.esc;
+    var id    = e(p.id),    name  = e(p.name), sub   = e(p.sub);
+    var img   = e(p.img),   badge = e(p.badge || '');
+    var price = e(p.price), was   = e(p.was || '');
+    return '' +
+      '<article class="card" data-reveal tabindex="0" role="link" ' +
+      'data-id="' + id + '" data-name="' + name + '" data-price="' + price + '" ' +
+      'data-img="' + img + '" data-href="product.html?id=' + id + '" ' +
+      'aria-label="' + name + '，¥' + price + '，查看详情">' +
+        '<div class="card__media">' +
+          (img ? '<img src="' + img + '" alt="' + name + '" loading="lazy" width="1024" height="1024">' : '') +
+          (p.badge ? '<span class="card__badge' + (badge === '新到' || badge === '热销' ? ' card__badge--accent' : '') + '">' + badge + '</span>' : '') +
+        '</div>' +
+        '<div class="card__body">' +
+          '<div class="card__row">' +
+            '<div>' +
+              '<div class="card__name">' + name + '</div>' +
+              (sub ? '<div class="card__sub">' + sub + '</div>' : '') +
+            '</div>' +
+            '<div class="card__price num">' +
+              (p.was ? '<s>¥' + was + '</s>' : '') + '¥' + price +
+            '</div>' +
+          '</div>' +
+          // 评分与评价数只显示真实评价；没有评价时不渲染这一行（不再出现写死的 4.9 / 1284）
+          (p.review_count > 0 ?
+            '<div class="card__foot">' +
+              '<span class="stars">' + stars(p.rating) + '<span class="num" style="margin-left:3px">' + p.rating.toFixed(1) + '</span></span>' +
+              '<span class="tiny num">' + e(p.review_count) + ' 条评价</span>' +
+            '</div>' : '') +
+        '</div>' +
+      '</article>';
+  }
+
+  function filtered() {
+    var list = S.products.filter(function (p) {
+      var okCat = state.cat === 'all' || p.cat === state.cat;
+      var k = state.q.trim().toLowerCase();
+      var okQ = !k || (p.name + p.sub + p.desc).toLowerCase().indexOf(k) > -1;
+      return okCat && okQ;
+    });
+    if (state.sort === 'price-asc') list.sort(function (a, b) { return a.price - b.price; });
+    else if (state.sort === 'price-desc') list.sort(function (a, b) { return b.price - a.price; });
+    else if (state.sort === 'rating') list.sort(function (a, b) { return b.rating - a.rating; });
+    return list;
+  }
+
+  function render() {
+    var list = filtered();
+    grid.innerHTML = list.map(card).join('');
+    resultEl.textContent = '共 ' + list.length + ' 件';
+    emptyEl.hidden = list.length > 0;
+    U.protectOrphans(grid);
+    // 重新挂载进场观察
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (es) {
+        es.forEach(function (en) {
+          if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+        });
+      }, { rootMargin: '0px 0px -6% 0px', threshold: 0.05 });
+      grid.querySelectorAll('[data-reveal]').forEach(function (el, i) {
+        el.style.transitionDelay = (i % 4) * 55 + 'ms';
+        io.observe(el);
+      });
+    } else {
+      grid.querySelectorAll('[data-reveal]').forEach(function (el) { el.classList.add('in'); });
+    }
+  }
+
+  paintChips();
+  render();
+
+  /* ---- 事件 ---- */
+  chipsEl.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-cat]');
+    if (!b) return;
+    state.cat = b.getAttribute('data-cat');
+    history.replaceState(null, '', state.cat === 'all' ? '#shelf' : '#cat-' + state.cat);
+    paintChips();
+    render();
+  });
+
+  document.getElementById('sort').addEventListener('change', function (e) {
+    state.sort = e.target.value;
+    render();
+  });
+
+  var searchTimer;
+  document.getElementById('q').addEventListener('input', function (e) {
+    clearTimeout(searchTimer);
+    var v = e.target.value;
+    searchTimer = setTimeout(function () { state.q = v; render(); }, 130);
+  });
+
+  document.getElementById('reset-filter').addEventListener('click', function () {
+    state = { cat: 'all', q: '', sort: 'featured' };
+    document.getElementById('q').value = '';
+    document.getElementById('sort').value = 'featured';
+    paintChips();
+    render();
+  });
+
+  /* 卡片打开详情页：绑定在本页容器上，不依赖 app.js 的全局代理。
+     这样即使浏览器缓存了旧版 app.js（其跳转逻辑在已删除的拖拽函数里），点击依然有效。 */
+  function openCard(c) {
+    var href = c && c.getAttribute('data-href');
+    if (href) location.href = href;
+  }
+  function cardFrom(e) {
+    return e.target && e.target.closest ? e.target.closest('.card') : null;
+  }
+  grid.addEventListener('click', function (e) {
+    var c = cardFrom(e);
+    if (!c || (e.target.closest && e.target.closest('a,button,input,select,textarea'))) return;
+    e.stopPropagation();      // 阻止 app.js 的 document 级兜底代理重复跳转
+    openCard(c);
+  });
+  grid.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var c = cardFrom(e);
+    if (!c || (e.target.closest && e.target.closest('a,button,input,select,textarea'))) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openCard(c);
+  });
+
+  /* 深链：#cat-live 等 */
+  if (/^#cat-/.test(location.hash)) {
+    state.cat = location.hash.replace('#cat-', '');
+    paintChips();
+    render();
+  }
+});
+</script>
+</body>
+</html>

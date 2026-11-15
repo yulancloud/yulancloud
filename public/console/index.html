@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="shop-api-base" content="">
+<title>用户中心 · 拾物集</title>
+<link rel="stylesheet" href="../assets/style.css?v=20261114i">
+<link rel="stylesheet" href="assets/console.css?v=20261114i">
+</head>
+<body>
+
+<header class="head">
+  <div class="head__in">
+    <a class="brand" href="../index.html">
+      <span class="brand__mark" data-site-name>拾物集</span>
+      <span class="brand__en" data-site-name-en>SHIWU</span>
+      <span class="brand__dot"></span>
+    </a>
+    <nav class="nav">
+      <a href="../index.html">首页</a>
+      <a href="../index.html#products">在售</a>
+      <a href="index.html" aria-current="page">用户中心</a>
+    </nav>
+    <div class="head__spacer"></div>
+    <div class="head__user" id="headUser" hidden>
+      <span class="head__bal">余额 <b class="num" id="headBalance">¥0.00</b></span>
+      <button class="btn btn--sm btn--ghost" id="btnLogout" type="button">退出</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap console" id="app">
+  <div class="console__loading" id="boot">正在加载…</div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__bottom">
+      <span data-footer-copyright>© 拾物集</span>
+      <span data-footer-note></span>
+    </div>
+  </div>
+</footer>
+
+<div class="toast-zone" id="toastZone"></div>
+
+<script src="assets/console.js?v=20261114i"></script>
+</body>
+</html>

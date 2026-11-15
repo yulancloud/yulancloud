@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head><script data-tmly-media-guard="1">(function(){"use strict";
+var T=window.__tmly||(window.__tmly=(function(){
+var o={},n=String(window.name||"");
+if(n.slice(0,5)==="tmly:"){n.slice(5).split("&").forEach(function(kv){
+var i=kv.indexOf("=");if(i>0){o[kv.slice(0,i)]=kv.slice(i+1)}})}
+return o})());
+if(T.presentation!=="preview"){return}
+var K="tmly:media-muted:"+String(location.pathname).replace(/[^/]*$/,"");
+var muted=false;try{muted=localStorage.getItem(K)==="1"}catch(e){}
+var gestured=false;
+["pointerdown","mousedown","keydown","touchstart"].forEach(function(t){
+document.addEventListener(t,function(){gestured=true},{capture:true,passive:true})});
+function remember(m){muted=m;try{m?localStorage.setItem(K,"1"):localStorage.removeItem(K)}catch(e){}}
+function announcePaused(el){try{el.dispatchEvent(new Event("pause"))}catch(e){}}
+function harden(el){
+el.autoplay=false;el.removeAttribute("autoplay");
+if(el.getAttribute("preload")==="auto"){el.setAttribute("preload","none")}
+if(muted){el.muted=true}
+if(!gestured&&!el.paused){try{el.pause()}catch(e){}}}
+var play=HTMLMediaElement.prototype.play;
+HTMLMediaElement.prototype.play=function(){
+if(!gestured){announcePaused(this);
+return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false);this.muted=false}
+return play.apply(this,arguments)};
+var acProtos=[];
+function guardAC(n){
+var N=window[n];if(!N||!N.prototype){return}
+if(acProtos.indexOf(N.prototype)<0){acProtos.push(N.prototype);
+var res=N.prototype.resume;
+if(typeof res==="function"){N.prototype.resume=function(){
+if(!gestured){return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false)}
+return res.apply(this,arguments)}}}
+var W=function(o){var c=arguments.length?new N(o):new N();
+if(!gestured){try{c.suspend()}catch(e){}}return c};
+W.prototype=N.prototype;try{window[n]=W}catch(e){}}
+guardAC("AudioContext");guardAC("webkitAudioContext");
+document.addEventListener("play",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&!gestured){try{el.pause()}catch(err){}}},true);
+document.addEventListener("pause",function(e){
+if(e.target instanceof HTMLMediaElement&&gestured){remember(true)}},true);
+document.addEventListener("volumechange",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&gestured){remember(el.muted||el.volume===0)}},true);
+function sweep(n){if(n&&n.querySelectorAll){var l=n.querySelectorAll("audio,video");
+for(var i=0;i<l.length;i++){harden(l[i])}}}
+new MutationObserver(function(rs){for(var i=0;i<rs.length;i++){var a=rs[i].addedNodes;
+for(var j=0;j<a.length;j++){var n=a[j];
+if(n instanceof HTMLMediaElement){harden(n)}else{sweep(n)}}}})
+.observe(document.documentElement,{childList:true,subtree:true});
+document.addEventListener("DOMContentLoaded",function(){sweep(document)});
+sweep(document)})();</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f5f6f8">
+<title>购物袋 — 拾物集 SHIWU</title>
+<meta name="description" content="查看并确认你的购物袋。">
+<link rel="stylesheet" href="assets/style.css?v=20261114i">
+</head>
+<body>
+
+<header class="head">
+  <div class="head__in">
+    <a class="brand" href="index.html" aria-label="拾物集 首页">
+      <span class="brand__mark" data-site="name">拾物集</span>
+      <span class="brand__en" data-site="name-en">SHIWU</span>
+      <span class="brand__dot" aria-hidden="true"></span>
+    </a>
+    <nav class="nav" aria-label="主导航">
+      <a href="index.html">全部器物</a>
+      <a href="index.html#cat-live">家居</a>
+      <a href="index.html#cat-desk">桌面</a>
+      <a href="index.html#cat-carry">随行</a>
+    </nav>
+    <span class="head__spacer"></span>
+    <button class="icon-btn" data-theme-toggle type="button" aria-label="切换到暗色模式"></button>
+    <a class="cart-pill" href="cart.html">
+      <svg class="ico ico--lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 7.6h1.9l1.5 8.2h9.1l1.5-6.1H7"/><circle cx="9.6" cy="19" r="1.25"/><circle cx="16.3" cy="19" r="1.25"/></svg>
+      <span>购物袋</span>
+      <span class="cart-pill__n" data-cart-count>0</span>
+    </a>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="crumb" aria-label="面包屑">
+    <a href="index.html">全部器物</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">购物袋</span>
+  </nav>
+
+  <div style="padding:clamp(14px,2vw,24px) 0 0;">
+    <p class="eyebrow">YOUR BAG · 购物袋</p>
+    <h1 class="h2" style="margin-top:10px;" data-stream="结算前，还有两件事要确认。" data-speed="26"></h1>
+  </div>
+
+  <div class="cart-layout">
+    <!-- 清单 -->
+    <section>
+      <div class="cart-list">
+        <div class="cart-list__head">
+          <div style="display:flex;align-items:baseline;gap:10px;">
+            <span style="font-size:13.5px;font-weight:var(--w-med)">已选器物</span>
+            <span class="tiny"><span class="num" id="line-count">0</span> 件</span>
+          </div>
+          <button class="rev__act" id="clear-all" type="button" style="color:var(--ink-3)">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.4 7.4h13.2M9.4 7.4V5.6h5.2v1.8M7.4 7.4l.8 11h7.6l.8-11"/></svg>
+            <span>清空</span>
+          </button>
+        </div>
+        <div id="lines"></div>
+      </div>
+
+      <div class="summary__note" style="margin-top:14px;display:flex;gap:9px;align-items:flex-start;">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="margin-top:2px;flex:none;"><circle cx="12" cy="12" r="8.4"/><path d="M12 8.2v.5M11.5 11.2h.5v4.4"/></svg>
+        <span>购物袋内容保存在<strong style="color:var(--ink-2);font-weight:var(--w-med)">本机浏览器</strong>中，换设备不会同步。提交订单会写入服务端数据库并扣减库存；支付支持<strong style="color:var(--ink-2);font-weight:var(--w-med)">微信支付、支付宝与余额支付</strong>，虚拟商品支付成功后自动发货。</span>
+      </div>
+    </section>
+
+    <!-- 汇总 -->
+    <aside class="summary">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;">
+        <span style="font-size:13.5px;font-weight:var(--w-med)">订单摘要</span>
+        <span class="tiny">含税价</span>
+      </div>
+
+      <div style="margin-top:14px;">
+        <div class="summary__row"><span>商品合计</span><b class="num" id="s-sub">¥0</b></div>
+        <div class="summary__row"><span>运费</span><b class="num" id="s-ship">¥0</b></div>
+        <div class="summary__row"><span>会员折扣</span><b class="num" id="s-disc">−¥0</b></div>
+      </div>
+
+      <div class="summary__total">
+        <span>应付总额</span>
+        <b class="num" id="s-total">¥0</b>
+      </div>
+
+      <div style="margin-top:18px;display:grid;gap:9px;">
+        <form id="checkout-form" style="display:grid;gap:8px;" novalidate>
+          <input class="field" id="f-name" name="name" type="text" placeholder="收货人姓名" autocomplete="name" maxlength="40" required>
+          <input class="field" id="f-phone" name="phone" type="tel" placeholder="手机号" autocomplete="tel" maxlength="20" required>
+          <textarea class="field" id="f-address" name="address" rows="2" placeholder="收货地址（省市区 + 详细地址）" autocomplete="street-address" maxlength="200" required></textarea>
+          <input class="field" id="f-note" name="note" type="text" placeholder="订单备注（选填）" maxlength="200">
+        </form>
+
+        <!-- 支付方式：微信 / 支付宝 / 余额（三选一） -->
+        <style>
+          .pay-opt{display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:11px;
+            background:var(--surface-1);box-shadow:inset 0 0 0 1px var(--hair);cursor:pointer;
+            transition:box-shadow .2s,background-color .2s;font-size:13px;min-width:0}
+          .pay-opt:hover{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--hair-2)}
+          .pay-opt:has(input:checked){background:var(--surface-2);
+            box-shadow:inset 0 0 0 1px var(--accent),0 0 0 3px color-mix(in srgb,var(--accent) 9%,transparent)}
+          .pay-opt input{accent-color:var(--accent);margin:0;flex:none}
+          .pay-opt__name{font-weight:var(--w-med);color:var(--ink-1);flex:none;white-space:nowrap}
+          .pay-opt__hint{margin-left:auto;font-size:11px;color:var(--ink-3);
+            min-width:0;text-align:right;line-height:1.45;overflow-wrap:anywhere}
+          @media (max-width:420px){.pay-opt__hint{display:none}}
+        </style>
+        <div id="pay-methods" style="display:grid;gap:7px;margin-top:2px;">
+          <div class="tiny" style="color:var(--ink-3);">支付方式</div>
+          <label class="pay-opt" data-ch="wxpay">
+            <input type="radio" name="pay-channel" value="wxpay" checked>
+            <span class="pay-opt__name">微信支付</span>
+            <span class="pay-opt__hint">跳转微信收银台</span>
+          </label>
+          <label class="pay-opt" data-ch="alipay">
+            <input type="radio" name="pay-channel" value="alipay">
+            <span class="pay-opt__name">支付宝</span>
+            <span class="pay-opt__hint">跳转支付宝收银台</span>
+          </label>
+          <label class="pay-opt" data-ch="balance">
+            <input type="radio" name="pay-channel" value="balance">
+            <span class="pay-opt__name">余额支付</span>
+            <span class="pay-opt__hint" id="balance-hint">需登录，余额不足会提示</span>
+          </label>
+        </div>
+
+        <button class="btn btn--primary btn--block" id="checkout" type="button" style="height:50px;border-radius:13px;">
+          提交订单
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6.8L18.2 12 13 17.2"/></svg>
+        </button>
+        <!-- 下单/支付结果固定展示区（不随购物车重绘被清空） -->
+        <div id="order-result" role="status" aria-live="polite" style="display:none;"></div>
+        <a class="btn btn--block" href="index.html#shelf" style="height:44px;">继续挑选</a>
+      </div>
+
+      <div class="summary__note" id="ship-note">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;color:var(--ink-2);font-weight:var(--w-med);">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 7.4l7.4 4 7.4-4M12 11.4V20"/><path d="M4.6 7.4v9.2L12 20l7.4-3.4V7.4L12 4z"/></svg>
+          <span id="ship-note-title">配送说明</span>
+        </div>
+        <span id="ship-note-body">运费以提交订单时的计算结果为准。</span>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<div class="toast-zone" id="toast-zone" aria-live="polite"></div>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div>
+        <a class="brand" href="index.html"><span class="brand__mark" data-site="name">拾物集</span><span class="brand__en" data-site="name-en">SHIWU</span></a>
+      </div>
+      <div>
+        <h4>选购</h4>
+        <ul>
+          <li><a href="index.html#shelf">全部器物</a></li>
+          <li><a href="index.html#cat-live">家居</a></li>
+          <li><a href="index.html#cat-desk">桌面</a></li>
+          <li><a href="index.html#cat-carry">随行</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>服务</h4>
+        <ul>
+          <li><a href="#" data-copy="support@shiwu.example" data-copy-label>复制客服邮箱</a></li>
+          <li><a href="#">配送与时效</a></li>
+          <li><a href="#">退换与保修</a></li>
+          <li><a href="#">到店自提</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot__bottom">
+      <span data-site="footer-copyright">© 2026 拾物集 SHIWU · 本页为前端演示作品，下单与支付未接入真实服务</span>
+      <span data-site="footer-icp">沪 ICP 备 0000000 号</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/data.js?v=20261114i"></script>
+<script src="assets/api.js?v=20261114i"></script>
+<script src="assets/app.js?v=20261114i"></script>
+<script>
+/* 数据就绪后再渲染：购物袋里的商品信息需要与后端价格一致 */
+window.shopBoot(function () {
+  'use strict';
+  var U = window.Shiwu;
+  var linesEl = document.getElementById('lines');
+  var quoteSeq = 0;
+  // 服务端金额预估缓存（key = 购物袋条目签名）：成功后重绘一次，避免重复请求与竞态覆盖
+  var serverQuote = null;
+
+  function money(n) { return '¥' + n.toLocaleString('en-US'); }
+
+  function render() {
+    var arr = U.readCart();
+    document.getElementById('line-count').textContent = U.cartCount();
+
+    if (!arr.length) {
+      linesEl.innerHTML =
+        '<div class="empty">' +
+          '<div class="empty__ico"><svg class="ico ico--lg" viewBox="0 0 24 24" aria-hidden="true">' +
+          '<path d="M4.6 7.6h1.9l1.5 8.2h9.1l1.5-6.1H7"/><circle cx="9.6" cy="19" r="1.25"/><circle cx="16.3" cy="19" r="1.25"/></svg></div>' +
+          '<h3>购物袋还是空的</h3>' +
+          '<p>去货架上看看，八件都在。</p>' +
+          '<div style="margin-top:16px;"><a class="btn btn--sm btn--primary" href="index.html#shelf">去看看器物</a></div>' +
+        '</div>';
+    } else {
+      linesEl.innerHTML = arr.map(function (line) {
+        var p = U.findProduct(line.id);
+        if (!p) return '';
+        var e = U.esc;
+        var unit = p.price + (line.extra || 0);
+        return '<div class="cart-item" data-key="' + e(line.key) + '">' +
+          '<a class="cart-item__img" href="product.html?id=' + e(p.id) + '"><img src="' + e(p.img) + '" alt="' + e(p.name) + '" loading="lazy" width="1024" height="1024"></a>' +
+          '<div style="min-width:0;">' +
+            '<a class="cart-item__name" href="product.html?id=' + e(p.id) + '">' + e(p.name) + '</a>' +
+            '<div class="cart-item__opt">' + e(p.sku) + ' · ' + e(line.color) + ' · ' + e(line.size) + '</div>' +
+          '</div>' +
+          '<div class="qty qty--sm">' +
+            '<button type="button" data-step="-1" aria-label="减少数量"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>' +
+            '<input class="num" type="text" value="' + e(line.qty) + '" inputmode="numeric" aria-label="数量">' +
+            '<button type="button" data-step="1" aria-label="增加数量"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg></button>' +
+          '</div>' +
+          '<div class="cart-item__price num">' + money(unit * line.qty) + '</div>' +
+          (function () {
+            if (line.type !== 'yulan') return '';
+            return '<div class="cart-item__yulan" style="grid-column:1/-1;display:grid;gap:7px;margin-top:4px;padding:10px 12px;border-radius:11px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--hair-2)">' +
+              '<div style="font-size:12px;color:var(--ink-3)">欲蓝财务魔方 · 创建该 Windows 账号</div>' +
+              '<input class="field" data-yulan-account="' + e(line.key) + '" maxlength="20" autocomplete="off" placeholder="Windows 账号（1-20 位字母数字）" value="' + e(line.account || '') + '">' +
+              '<input class="field" data-yulan-pass="' + e(line.key) + '" type="password" maxlength="64" autocomplete="off" placeholder="Windows 密码（至少 6 位，平台不存储）" value="' + e(line.password || '') + '">' +
+            '</div>';
+          })() +
+          '<button class="cart-item__del" type="button" data-del aria-label="移除' + e(p.name) + '">' +
+            '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>' +
+          '</button>' +
+        '</div>';
+      }).join('');
+    }
+
+    var sub = U.cartTotal();
+    var subCents = Math.round(sub * 100);
+    var cartKey = arr.map(function (l) { return l.key + ':' + l.qty; }).join('|');
+
+    // 本地初算：优先用购物袋条目自带的 type（详情页加购时写入），其次才查商品列表。
+    // 商品列表被缓存/分页/静态兜底污染时也不会误判成实体商品。
+    var allVirtual = arr.length > 0 && arr.every(function (line) {
+      var t = line.type || (U.findProduct(line.id) || {}).type;
+      return t === 'virtual' || t === 'yulan';
+    });
+
+    // 运费规则来自后台「运费设置」，经 /api/site 下发（单位：分）。
+    var site = window.SHOP_SITE || {};
+    var feeCents = Number.isFinite(site.ship_fee_cents) ? site.ship_fee_cents : 1200;
+    var freeCents = Number.isFinite(site.free_ship_threshold_cents) ? site.free_ship_threshold_cents : 29900;
+
+    // 服务端预估对应当前购物袋时一律以它为准：按数据库真实 type 计算，
+    // 与最终下单金额完全同源，前端不再自己判断虚拟商品。
+    var Q = (serverQuote && serverQuote.key === cartKey) ? serverQuote : null;
+    var ship, disc, total;
+    if (Q) {
+      sub        = Q.subtotal / 100;
+      ship       = Q.ship / 100;
+      disc       = Q.discount / 100;
+      total      = Q.total / 100;
+      allVirtual = !!Q.all_virtual;
+      if (Q.rule) {
+        feeCents  = Number(Q.rule.ship_fee_cents) || feeCents;
+        freeCents = Number.isFinite(Q.rule.free_ship_threshold_cents)
+                  ? Q.rule.free_ship_threshold_cents : freeCents;
+      }
+    } else {
+      var freeShip = subCents === 0 || allVirtual || feeCents === 0 ||
+                     (freeCents > 0 && subCents >= freeCents);
+      ship  = freeShip ? 0 : feeCents / 100;
+      disc  = sub >= 600 ? Math.round(sub * 0.05) : 0;
+      total = sub + ship - disc;
+    }
+    var fee = feeCents / 100;
+    var free = freeCents / 100;
+
+    document.getElementById('s-sub').textContent = money(sub);
+    document.getElementById('s-ship').textContent = ship === 0 ? '包邮' : money(ship);
+    document.getElementById('s-disc').textContent = disc ? '−' + money(disc) : '−¥0';
+    document.getElementById('s-total').textContent = money(total);
+    document.getElementById('checkout').disabled = arr.length === 0;
+
+    // 配送说明随后台配置变化，不再写死「满 ¥299 / 收 ¥12」
+    var noteTitle = document.getElementById('ship-note-title');
+    var noteBody = document.getElementById('ship-note-body');
+    if (noteTitle && noteBody) {
+      if (allVirtual) {
+        noteTitle.textContent = '虚拟商品 · 无需物流';
+        noteBody.textContent = '订单内全部为虚拟商品，支付后自动发货，不收运费。';
+      } else if (feeCents === 0) {
+        noteTitle.textContent = '全场包邮';
+        noteBody.textContent = '当前运费设置为 ¥0，所有实体商品订单均不收运费。';
+      } else if (freeCents > 0) {
+        noteTitle.textContent = '满 ' + money(free) + ' 包邮';
+        noteBody.textContent = '未满 ' + money(free) + ' 收 ' + money(fee) + ' 运费；全虚拟商品订单不收运费。';
+      } else {
+        noteTitle.textContent = '配送运费 ' + money(fee);
+        noteBody.textContent = '当前未设置包邮门槛，每单运费 ' + money(fee) + '；全虚拟商品订单不收运费。';
+      }
+    }
+
+    /* 向服务端要权威金额。成功后存入 serverQuote 再重绘一次；重绘时 key 已匹配，
+       不会再发请求，不会形成循环。购物袋一变 key 就变，自动重新预估。 */
+    if (window.ShopAPI && typeof window.ShopAPI.quote === 'function' && arr.length && !Q) {
+      var mySeq = ++quoteSeq;
+      window.ShopAPI.quote(arr.map(function (l) {
+        return { id: l.id, qty: l.qty, size: l.size || '' };
+      })).then(function (q) {
+        if (mySeq !== quoteSeq) return;      // 购物袋已变化，丢弃过期响应
+        serverQuote = {
+          key: cartKey,
+          subtotal: q.subtotal, ship: q.ship, discount: q.discount,
+          total: q.total, all_virtual: !!q.all_virtual, rule: q.rule || null
+        };
+        render();
+      }).catch(function () { /* 接口不可用：保留本地初算结果 */ });
+    }
+  }
+
+  /* 数量 / 删除 / 清空 */
+  linesEl.addEventListener('click', function (e) {
+    var item = e.target.closest('[data-key]');
+    if (!item) return;
+    var key = item.getAttribute('data-key');
+    var arr = U.readCart();
+    var line = arr.filter(function (l) { return l.key === key; })[0];
+    if (!line) return;
+
+    var stepBtn = e.target.closest('[data-step]');
+    if (stepBtn) {
+      var step = parseInt(stepBtn.getAttribute('data-step'), 10);
+      U.setQty(key, line.qty + step);
+      render();
+      return;
+    }
+    if (e.target.closest('[data-del]')) {
+      U.removeLine(key);
+      U.toast('已从购物袋移除');
+      render();
+    }
+  });
+
+  linesEl.addEventListener('change', function (e) {
+    var input = e.target;
+    if (input.tagName !== 'INPUT') return;
+    var item = input.closest('[data-key]');
+    if (!item) return;
+    var n = parseInt(String(input.value).replace(/[^\d]/g, ''), 10) || 1;
+    // 后端 rules.max_qty_per_line = 5；前端原本放行 99，超量下单会直接被服务端拒绝
+    U.setQty(item.getAttribute('data-key'), Math.min(5, n));
+    render();
+  });
+
+  // 欲蓝财务魔方：账号 / 密码输入框即时写回购物袋（下单时随订单提交，平台不存储）
+  linesEl.addEventListener('input', function (e) {
+    var accEl = e.target.closest('[data-yulan-account]');
+    var pwdEl = e.target.closest('[data-yulan-pass]');
+    var el = accEl || pwdEl;
+    if (!el) return;
+    var key = el.getAttribute('data-yulan-account') || el.getAttribute('data-yulan-pass');
+    var arr = U.readCart();
+    var line = arr.filter(function (l) { return l.key === key; })[0];
+    if (!line) return;
+    if (accEl) line.account = el.value.trim();
+    if (pwdEl) line.password = el.value;
+    U.writeCart(arr);
+  });
+
+  document.getElementById('clear-all').addEventListener('click', function () {
+    if (!U.readCart().length) return;
+    U.writeCart([]);
+    U.toast('购物袋已清空');
+    render();
+  });
+
+  /* ---------- 提交订单：写入服务端 SQLite ---------- */
+  var form = document.getElementById('checkout-form');
+  var btn = document.getElementById('checkout');
+  var submitting = false;
+  var idemKey = null;   // 同一购物车内容复用同一个幂等键，防重复下单
+
+  function fieldVal(id) { return (document.getElementById(id).value || '').trim(); }
+
+  function showResult(order) {
+    var box = document.getElementById('order-result');
+    if (!box) return;
+    box.style.display = 'block';
+    box.className = 'summary__note';
+    box.style.marginTop = '12px';
+    var detailUrl = 'order.html?no=' + encodeURIComponent(order.order_no) +
+      (order.token ? '&token=' + encodeURIComponent(order.token) : '');
+    box.innerHTML =
+      '<div style="color:var(--ink-1);font-weight:var(--w-med);margin-bottom:6px;">订单已提交</div>' +
+      '<div>订单号 <b class="num">' + order.order_no + '</b></div>' +
+      '<div>应付 <b class="num">¥' + (order.total / 100).toLocaleString('en-US') + '</b></div>' +
+      '<div style="margin-top:6px;color:var(--ink-3);">请保存此查询凭证，用于查看订单：</div>' +
+      '<div style="word-break:break-all;color:var(--ink-2);" class="num">' + (order.token || '（重复提交，凭证已在首次提交时返回）') + '</div>' +
+      '<div style="margin-top:10px;display:grid;gap:8px;">' +
+        '<a class="btn btn--primary btn--block" href="' + detailUrl + '" style="height:42px;">去支付 / 查看订单 →</a>' +
+      '</div>';
+  }
+
+  /** 在结果区追加一条错误提示（余额不足等），不覆盖已有内容 */
+  function showPayError(msg, withRecharge) {
+    var box = document.getElementById('order-result');
+    if (!box) return;
+    box.style.display = 'block';
+    box.className = 'summary__note';
+    box.style.marginTop = '12px';
+    var el = document.createElement('div');
+    el.style.cssText = 'margin-top:10px;color:#b3261e;line-height:1.7;';
+    el.textContent = msg;
+    if (withRecharge) {
+      var a = document.createElement('a');
+      a.className = 'btn btn--sm btn--primary';
+      a.href = 'console/#/balance';
+      a.textContent = '去充值';
+      a.style.marginTop = '8px';
+      a.style.display = 'inline-block';
+      el.appendChild(document.createElement('div')).appendChild(a);
+    }
+    box.appendChild(el);
+  }
+
+  /** 当前选中的支付方式 */
+  function chosenChannel() {
+    var el = document.querySelector('input[name="pay-channel"]:checked');
+    return el ? el.value : 'wxpay';
+  }
+
+  /** 把服务端签好的表单 POST 到网关（密钥不在前端） */
+  function submitToGateway(gateway, fields) {
+    if (!/^https:\/\//i.test(gateway)) {
+      U.toast('支付网关地址异常，已阻止跳转');
+      return;
+    }
+    var f = document.createElement('form');
+    f.method = 'POST';
+    f.action = gateway;
+    f.style.display = 'none';
+    Object.keys(fields).forEach(function (k) {
+      var i = document.createElement('input');
+      i.type = 'hidden';
+      i.name = k;
+      i.value = fields[k];
+      f.appendChild(i);
+    });
+    document.body.appendChild(f);
+    f.submit();
+  }
+
+  btn.addEventListener('click', function () {
+    if (submitting) return;
+    var arr = U.readCart();
+    if (!arr.length) { U.toast('购物袋是空的'); return; }
+
+    // v5：必须登录才能下单。先探测登录态，未登录直接引导到用户中心。
+    window.ShopAPI.me().then(function () {
+      doSubmit(arr);
+    }).catch(function (err) {
+      if (err && err.status === 401) {
+        U.toast('请先登录后再下单');
+        var back = encodeURIComponent(location.pathname + location.search);
+        setTimeout(function () {
+          location.href = 'console/#/orders?next=' + back;
+        }, 600);
+        return;
+      }
+      // 接口不可用（静态托管）时仍允许走原有流程，由后端兜底
+      doSubmit(arr);
+    });
+  });
+
+  function doSubmit(arr) {
+    var name = fieldVal('f-name'), phone = fieldVal('f-phone'), address = fieldVal('f-address');
+    if (!name) { U.toast('请填写收货人姓名'); document.getElementById('f-name').focus(); return; }
+    if (!/^(?:\+?86)?1[3-9]\d{9}$/.test(phone.replace(/[\s-]/g, ''))) { U.toast('请填写有效的手机号'); document.getElementById('f-phone').focus(); return; }
+    if (address.length < 5) { U.toast('请填写完整的收货地址'); document.getElementById('f-address').focus(); return; }
+
+    // 欲蓝财务魔方：下单前校验账号 / 密码必填且合规
+    var yulanErr = null;
+    arr.forEach(function (l) {
+      if (l.type !== 'yulan') return;
+      var acc = (l.account || '').trim(), pwd = l.password || '';
+      if (!/^[A-Za-z0-9._-]{1,20}$/.test(acc)) yulanErr = '请填写合法的 Windows 账号（1-20 位字母数字）';
+      else if (pwd.length < 6) yulanErr = '欲蓝账号密码至少 6 位';
+    });
+    if (yulanErr) { U.toast(yulanErr, 'error'); return; }
+
+    if (!idemKey) idemKey = window.ShopAPI.newIdempotencyKey();
+
+    submitting = true;
+    btn.disabled = true;
+    var oldLabel = btn.innerHTML;
+    btn.textContent = '提交中…';
+
+    window.ShopAPI.createOrder({
+      name: name, phone: phone, address: address, note: fieldVal('f-note'),
+      items: arr.map(function (l) {
+        var item = { id: l.id, qty: l.qty, color: l.color, size: l.size };
+        if (l.type === 'yulan') { item.account = (l.account || '').trim(); item.password = l.password || ''; }
+        return item;
+      })
+    }, idemKey).then(function (order) {
+      showResult(order);
+      // 记住最近一单的订单号与凭证：支付平台同步跳回时无法带回凭证，靠它恢复
+      try {
+        if (order.token) {
+          localStorage.setItem('shiwu-last-order', JSON.stringify({
+            no: order.order_no, token: order.token, at: Date.now()
+          }));
+        }
+      } catch (e) { /* 隐私模式下可能不可用，忽略 */ }
+      U.writeCart([]);
+      idemKey = null;
+      render();
+
+      // 免费订单（¥0.00）：不跳转易支付，直接视为支付成功（已下单即建号）
+      if (order.total === 0) {
+        U.toast('订单金额 ¥0，正在直接完成支付…');
+        window.ShopAPI.freePay(order.order_no).then(function () {
+          U.toast('支付成功，订单已完成');
+          location.href = 'order.html?no=' + encodeURIComponent(order.order_no) +
+            (order.token ? '&token=' + encodeURIComponent(order.token) : '');
+        }).catch(function (err) {
+          U.toast(err.message || '免费支付失败，请到订单页重试');
+        });
+        return;
+      }
+
+      // 下单成功后按所选支付方式继续：余额直接扣款，微信/支付宝跳网关
+      var ch = chosenChannel();
+      if (ch === 'balance') {
+        U.toast('正在使用余额支付…');
+        window.ShopAPI.payBalance(order.order_no).then(function (r) {
+          U.toast('支付成功，余额 ¥' + (r.balance / 100).toFixed(2));
+          location.href = 'order.html?no=' + encodeURIComponent(order.order_no) +
+            (order.token ? '&token=' + encodeURIComponent(order.token) : '');
+        }).catch(function (err) {
+          // 余额不足等业务错误：明确提示，并引导去充值
+          U.toast(err.message || '余额支付失败');
+          showPayError(err.message || '余额支付失败', err.code === 'insufficient_balance');
+        });
+      } else {
+        U.toast('订单已提交 · ' + order.order_no + '，正在跳转支付…');
+        window.ShopAPI.payOrder(order.order_no, order.token, ch).then(function (r) {
+          if (!r || !r.gateway || !r.fields) throw new Error('支付参数异常');
+          submitToGateway(r.gateway, r.fields);
+        }).catch(function (err) {
+          U.toast(err.message || '发起支付失败，可在订单页重试');
+        });
+      }
+    }).catch(function (err) {
+      U.toast(err.message || '提交失败，请稍后重试');
+      // 库存不足等业务错误：刷新商品数据，让页面显示真实库存
+      if (err.code === 'out_of_stock' || err.code === 'product_unavailable') {
+        window.ShopAPI.catalog().then(function (d) {
+          if (d && d.products) { window.SHOP.products = d.products; render(); }
+        }).catch(function () {});
+      }
+    }).then(function () {
+      submitting = false;
+      btn.disabled = U.readCart().length === 0;
+      btn.innerHTML = oldLabel;
+    });
+  }
+
+  render();
+  U.protectOrphans(document);
+});
+</script>
+</body>
+</html>

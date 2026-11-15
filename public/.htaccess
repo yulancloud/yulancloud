@@ -1,0 +1,88 @@
+# =============================================================================
+# Apache 配置（放在 public/.htaccess）
+#
+# 前提：Apache 已启用 mod_rewrite，且站点 DocumentRoot 指向 public/
+#       <Directory /var/www/shop-php/public>
+#           AllowOverride All
+#       </Directory>
+#
+# 作用：
+#   1. /api/* 全部转发到 api/index.php（修复「点下单弹 404」）
+#   2. /install、/admin 路由到对应文件
+#   3. 数据库、备份、.env 等敏感文件一律 404
+# =============================================================================
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 子目录部署时，把这一行改成你的子目录，例如：
+    #   RewriteBase /shop/
+    RewriteBase /
+
+    # ---------- 敏感文件：直接 404 ----------
+    # 数据库文件
+    RewriteRule \.(sqlite|sqlite3|db|db3|sql|sqlitedb)$ - [R=404,L,NC]
+    # 备份 / 压缩包 / 日志 / 配置
+    RewriteRule \.(bak|backup|old|orig|swp|swo|tmp|log|ini|env|tar|tgz|gz|bz2|xz|zip|rar|7z|yml|yaml|lock)$ - [R=404,L,NC]
+    # 隐藏文件（.env / .git / .htaccess 等）
+    RewriteRule (^|/)\.(env|git|svn|hg|htpasswd|DS_Store) - [R=404,L,NC]
+    # 即使 data/ config/ 被误放进 public/ 也拦掉
+    RewriteRule ^(data|config|database|src|bin|deploy|vendor|node_modules)/ - [R=404,L,NC]
+
+    # ---------- API：全部交给 api/index.php ----------
+    # 与 Nginx 配置对齐：/api/ 下除入口 index.php 外，任何 .php 一律 404。
+    # 旧配置「真实文件直接 [L] 放行」会让 /api/*.php 被当静态文件返回源码，
+    # 也没拦住被误放进 public/ 的 src/ bin/ 脚本。
+    # 用 %{REQUEST_URI} 后缀判断，兼容 RewriteBase /shop/ 的子目录部署。
+    RewriteCond %{REQUEST_URI} !/api/index\.php$ [NC]
+    RewriteRule ^api/.*\.php$ - [R=404,L,NC]
+
+    # 真实存在的静态资源 / 入口文件直接放行；[L] 同时终止重写，避免入口被反复重写成死循环
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^api/ - [L]
+
+    # 其余 /api/* 一律进入口
+    RewriteRule ^api(/.*)?$ api/index.php [QSA,L]
+
+    # ---------- 安装向导 ----------
+    RewriteRule ^install/?$ install.html [L]
+
+    # ---------- 后台 ----------
+    RewriteRule ^admin$ admin/ [R=301,L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^admin/.*$ admin/index.html [L]
+
+    # ---------- 用户中心 ----------
+    RewriteRule ^console$ console/ [R=301,L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^console/.*$ console/index.html [L]
+
+    # ---------- 页面：不存在的路径回首页 ----------
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# ---------- 安全响应头 ----------
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "no-referrer"
+</IfModule>
+
+# ---------- 禁止目录列表 ----------
+Options -Indexes
+
+# ---------- 禁止访问敏感后缀（双保险，不依赖 rewrite） ----------
+<FilesMatch "\.(sqlite|sqlite3|db|db3|sql|sqlitedb|env|bak|backup|old|orig|log|ini|tar|tgz|gz|zip|rar|7z|lock)$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "^\.(env|git|htaccess|htpasswd)">
+    Require all denied
+</FilesMatch>
+
+# ---------- 默认字符集 ----------
+AddDefaultCharset UTF-8

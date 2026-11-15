@@ -1,0 +1,35 @@
+# ===== 切勿提交：真实数据与密钥 =====
+# 真实 SQLite 数据库（订单/用户/密码哈希）
+/data/shop.sqlite
+/data/shop.sqlite-*
+/data/*.sqlite
+/data/*.sqlite-journal
+# 数据库备份
+/data/*.bak-*
+# 欲蓝异步队列（含下单信息）
+/data/yulan_mock_queue.jsonl
+# 安装锁（标记是否已安装）
+/config/installed.lock
+# 真实环境配置（如有）
+/config/.env
+# 日志
+/windows_app/logs/*
+/windows_app/*.log
+*.log
+
+# ===== 构建/缓存产物 =====
+__pycache__/
+*.pyc
+*.pyo
+node_modules/
+
+# ===== 编辑器/系统 =====
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# 例外：保留空目录占位
+!data/.gitkeep
+!windows_app/logs/.gitkeep

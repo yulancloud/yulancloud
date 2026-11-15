@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>后台登录 — 拾物集</title>
+<meta name="theme-color" content="#f5f6f8">
+<link rel="stylesheet" href="../assets/style.css?v=20261114i">
+<link rel="stylesheet" href="assets/admin.css?v=20261114i">
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-card__brand">
+      <span class="brand__mark">拾物集</span>
+      <span class="brand__en">SHIWU</span>
+      <span class="brand__dot" aria-hidden="true"></span>
+    </div>
+    <p class="eyebrow">ADMIN · 后台</p>
+    <h1>登录管理后台</h1>
+    <p class="lede">管理商品、分类、订单与评价。</p>
+
+    <form class="login-form" id="login-form" autocomplete="on" novalidate>
+      <div class="login-err" id="login-err" role="alert"></div>
+
+      <div>
+        <label for="f-user">账号</label>
+        <input class="field" id="f-user" name="username" type="text"
+               autocomplete="username" required maxlength="64"
+               placeholder="管理员账号" spellcheck="false">
+      </div>
+
+      <div>
+        <label for="f-pass">密码</label>
+        <input class="field" id="f-pass" name="password" type="password"
+               autocomplete="current-password" required maxlength="200"
+               placeholder="登录密码">
+      </div>
+
+      <button class="btn btn--primary btn--block" type="submit" id="login-btn" style="height:46px;">
+        登录
+      </button>
+    </form>
+
+    <div class="login-foot">
+      连续输错 5 次将锁定 15 分钟。忘记密码请在服务器上执行
+      <code>php bin/create_admin.php --reset</code>。
+    </div>
+  </div>
+</div>
+
+<div class="toast-zone" id="toast-zone" aria-live="polite"></div>
+
+<script src="assets/api.js?v=20261114i"></script>
+<script>
+(function () {
+  'use strict';
+  var U = window.AdminU;
+  var API = window.AdminAPI;
+
+  U.initTheme();
+
+  var form = document.getElementById('login-form');
+  var errBox = document.getElementById('login-err');
+  var btn = document.getElementById('login-btn');
+  var userEl = document.getElementById('f-user');
+  var passEl = document.getElementById('f-pass');
+
+  // 回跳地址：只接受站内相对路径，防开放重定向
+  function nextUrl() {
+    var raw = new URLSearchParams(location.search).get('next') || '';
+    if (!raw) return 'index.html';
+    // 必须以单个 / 开头，且不含协议/双斜杠
+    if (!/^\/(?!\/)/.test(raw)) return 'index.html';
+    if (/[\r\n]/.test(raw)) return 'index.html';
+    return raw;
+  }
+
+  function showErr(msg) {
+    errBox.textContent = msg;
+    errBox.classList.add('is-on');
+  }
+  function clearErr() {
+    errBox.textContent = '';
+    errBox.classList.remove('is-on');
+  }
+
+  // 已登录就直接进后台，省一次输入
+  API.me().then(function () {
+    location.replace(nextUrl());
+  }).catch(function () { /* 未登录，正常显示表单 */ });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    clearErr();
+
+    var u = userEl.value.trim();
+    var p = passEl.value;
+    if (!u) { showErr('请输入账号'); userEl.focus(); return; }
+    if (!p) { showErr('请输入密码'); passEl.focus(); return; }
+
+    btn.disabled = true;
+    var old = btn.textContent;
+    btn.textContent = '登录中…';
+
+    API.login(u, p).then(function () {
+      location.replace(nextUrl());
+    }).catch(function (err) {
+      showErr(err.message || '登录失败');
+      passEl.value = '';
+      passEl.focus();
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = old;
+    });
+  });
+
+  userEl.focus();
+})();
+</script>
+</body>
+</html>

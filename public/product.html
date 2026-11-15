@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head><script data-tmly-media-guard="1">(function(){"use strict";
+var T=window.__tmly||(window.__tmly=(function(){
+var o={},n=String(window.name||"");
+if(n.slice(0,5)==="tmly:"){n.slice(5).split("&").forEach(function(kv){
+var i=kv.indexOf("=");if(i>0){o[kv.slice(0,i)]=kv.slice(i+1)}})}
+return o})());
+if(T.presentation!=="preview"){return}
+var K="tmly:media-muted:"+String(location.pathname).replace(/[^/]*$/,"");
+var muted=false;try{muted=localStorage.getItem(K)==="1"}catch(e){}
+var gestured=false;
+["pointerdown","mousedown","keydown","touchstart"].forEach(function(t){
+document.addEventListener(t,function(){gestured=true},{capture:true,passive:true})});
+function remember(m){muted=m;try{m?localStorage.setItem(K,"1"):localStorage.removeItem(K)}catch(e){}}
+function announcePaused(el){try{el.dispatchEvent(new Event("pause"))}catch(e){}}
+function harden(el){
+el.autoplay=false;el.removeAttribute("autoplay");
+if(el.getAttribute("preload")==="auto"){el.setAttribute("preload","none")}
+if(muted){el.muted=true}
+if(!gestured&&!el.paused){try{el.pause()}catch(e){}}}
+var play=HTMLMediaElement.prototype.play;
+HTMLMediaElement.prototype.play=function(){
+if(!gestured){announcePaused(this);
+return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false);this.muted=false}
+return play.apply(this,arguments)};
+var acProtos=[];
+function guardAC(n){
+var N=window[n];if(!N||!N.prototype){return}
+if(acProtos.indexOf(N.prototype)<0){acProtos.push(N.prototype);
+var res=N.prototype.resume;
+if(typeof res==="function"){N.prototype.resume=function(){
+if(!gestured){return Promise.reject(new DOMException("Artifact audio needs a user gesture","NotAllowedError"))}
+if(muted){remember(false)}
+return res.apply(this,arguments)}}}
+var W=function(o){var c=arguments.length?new N(o):new N();
+if(!gestured){try{c.suspend()}catch(e){}}return c};
+W.prototype=N.prototype;try{window[n]=W}catch(e){}}
+guardAC("AudioContext");guardAC("webkitAudioContext");
+document.addEventListener("play",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&!gestured){try{el.pause()}catch(err){}}},true);
+document.addEventListener("pause",function(e){
+if(e.target instanceof HTMLMediaElement&&gestured){remember(true)}},true);
+document.addEventListener("volumechange",function(e){
+var el=e.target;if(el instanceof HTMLMediaElement&&gestured){remember(el.muted||el.volume===0)}},true);
+function sweep(n){if(n&&n.querySelectorAll){var l=n.querySelectorAll("audio,video");
+for(var i=0;i<l.length;i++){harden(l[i])}}}
+new MutationObserver(function(rs){for(var i=0;i<rs.length;i++){var a=rs[i].addedNodes;
+for(var j=0;j<a.length;j++){var n=a[j];
+if(n instanceof HTMLMediaElement){harden(n)}else{sweep(n)}}}})
+.observe(document.documentElement,{childList:true,subtree:true});
+document.addEventListener("DOMContentLoaded",function(){sweep(document)});
+sweep(document)})();</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f5f6f8">
+<title data-site-title>素白手作马克杯 · SW-001 — 拾物集</title>
+<meta name="description" content="景德镇高白泥手工拉坯，哑光釉。300ml / 420ml 两种容量，洗碗机与微波炉可用。">
+<link rel="stylesheet" href="assets/style.css?v=20261114i">
+</head>
+<body>
+
+<header class="head">
+  <div class="head__in">
+    <a class="brand" href="index.html" aria-label="拾物集 首页">
+      <span class="brand__mark" data-site="name">拾物集</span>
+      <span class="brand__en" data-site="name-en">SHIWU</span>
+      <span class="brand__dot" aria-hidden="true"></span>
+    </a>
+    <nav class="nav" aria-label="主导航">
+      <a href="index.html">全部器物</a>
+      <a href="index.html#cat-live">家居</a>
+      <a href="index.html#cat-desk">桌面</a>
+      <a href="index.html#cat-carry">随行</a>
+      <a href="index.html#shelf">匠人手记</a>
+    </nav>
+    <span class="head__spacer"></span>
+    <label class="search" for="q2">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="M15.4 15.4L20 20"/></svg>
+      <input id="q2" type="search" placeholder="搜索器物 / 材质" autocomplete="off" aria-label="搜索器物">
+    </label>
+    <button class="icon-btn" data-theme-toggle type="button" aria-label="切换到暗色模式"></button>
+    <a class="cart-pill" href="cart.html">
+      <svg class="ico ico--lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 7.6h1.9l1.5 8.2h9.1l1.5-6.1H7"/><circle cx="9.6" cy="19" r="1.25"/><circle cx="16.3" cy="19" r="1.25"/></svg>
+      <span>购物袋</span>
+      <span class="cart-pill__n" data-cart-count>0</span>
+    </a>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="crumb" aria-label="面包屑">
+    <a href="index.html">全部器物</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <a href="index.html#cat-live" id="crumb-cat">家居</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span id="crumb-name" aria-current="page">素白手作马克杯</span>
+  </nav>
+
+  <!-- ================= 详情主区 ================= -->
+  <section class="detail">
+    <!-- 图集 -->
+    <div class="gallery">
+      <div class="gallery__main">
+        <span class="tick tick--tl" aria-hidden="true"></span>
+        <span class="tick tick--br" aria-hidden="true"></span>
+        <div class="gallery__frame" id="frame">
+          <img alt="" id="main-img" width="1024" height="1024">
+        </div>
+      </div>
+      <div class="gallery__thumbs" role="tablist" aria-label="商品图片">
+        <button class="thumb" role="tab" aria-selected="true" data-view="0" type="button">
+          <img alt="正面" loading="lazy">
+        </button>
+        <button class="thumb" role="tab" aria-selected="false" data-view="1" type="button">
+          <img alt="细节" loading="lazy">
+        </button>
+        <button class="thumb" role="tab" aria-selected="false" data-view="2" type="button">
+          <img alt="使用场景" loading="lazy">
+        </button>
+      </div>
+      <p class="tiny" style="margin-top:12px;display:flex;align-items:center;gap:6px;">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.4"/><path d="M12 8.4v.5M11.5 11.4h.5v4.2"/></svg>
+        鼠标移到主图上可放大查看釉面细节
+      </p>
+    </div>
+
+    <!-- 信息 -->
+    <div class="info">
+      <div class="info__head">
+        <p class="eyebrow" id="sku">SW-001 · 景德镇</p>
+        <h1 id="p-name">素白手作马克杯</h1>
+        <p class="info__sub" id="p-sub">景德镇 · 高白泥 · 哑光釉</p>
+      </div>
+
+      <div class="price-row">
+        <div class="price num" id="p-price"><small>¥</small>168</div>
+        <s class="num" id="p-was">¥219</s>
+        <span class="save" id="p-save">立省 ¥51</span>
+      </div>
+
+      <div class="rating-row">
+        <span class="stars" id="p-stars"></span>
+        <span class="num" id="p-rating">—</span>
+        <span class="dot" aria-hidden="true"></span>
+        <span>共 <span class="num" id="p-review-count">0</span> 条评价</span>
+        <span class="dot" aria-hidden="true"></span>
+        <span>库存 <span class="num" id="p-stock">0</span> 件</span>
+      </div>
+
+      <p class="lede" id="p-desc" style="margin-top:22px;" data-stream="一整块高白泥手工拉坯，杯壁保留指腹留下的极浅旋纹。哑光釉在自然光下几乎不反光，只把光留在杯口一圈。" data-speed="12"></p>
+
+      <!-- 颜色 -->
+      <div class="opt">
+        <div class="opt__label"><span>颜色</span><b id="color-pick">素白</b></div>
+        <div class="swatches" id="color-swatches" role="group" aria-label="选择颜色"></div>
+      </div>
+
+      <!-- 容量 -->
+      <div class="opt">
+        <div class="opt__label"><span>容量</span><b id="size-pick">300ml</b></div>
+        <div class="swatches" id="size-swatches" role="group" aria-label="选择容量"></div>
+      </div>
+
+      <!-- 数量 + 购买 -->
+      <div class="opt">
+        <div class="opt__label"><span>数量</span><b id="qty-hint">单次限购 5 件</b></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div class="qty">
+            <button type="button" id="q-minus" aria-label="减少数量">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg>
+            </button>
+            <input id="qty" class="num" type="text" value="1" inputmode="numeric" aria-label="数量">
+            <button type="button" id="q-plus" aria-label="增加数量">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg>
+            </button>
+          </div>
+          <span class="tiny" id="subtotal" style="margin-left:2px;">小计 <b class="num" style="color:var(--ink-1);font-weight:var(--w-med)">¥168</b></span>
+        </div>
+      </div>
+
+      <div class="buy-row">
+        <button class="btn btn--primary" id="btn-buy" type="button">
+          立即购买
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6.8L18.2 12 13 17.2"/></svg>
+        </button>
+        <button class="btn" id="btn-cart" type="button">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 7.6h1.9l1.5 8.2h9.1l1.5-6.1H7"/><circle cx="9.6" cy="19" r="1.25"/><circle cx="16.3" cy="19" r="1.25"/></svg>
+          加入购物袋
+        </button>
+        <button class="icon-btn" id="btn-like" type="button" aria-label="收藏" style="width:50px;height:50px;border-radius:13px;box-shadow:inset 0 0 0 1px var(--hair-2);">
+          <svg class="ico ico--lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.3-4.4-7.3-9.4A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.3 3c0 5-7.3 9.4-7.3 9.4Z"/></svg>
+        </button>
+      </div>
+
+      <!-- 欲蓝财务魔方：下单需填写要创建的 Windows 账号与密码 -->
+      <div id="yulan-fields" style="display:none;margin-top:14px;padding:14px 16px;background:var(--paper);border-radius:14px;box-shadow:inset 0 0 0 1px var(--hair-2)">
+        <div style="font-size:13px;font-weight:var(--w-med);margin-bottom:10px">欲蓝财务魔方 · 账号信息</div>
+        <div class="fld" style="margin-bottom:10px">
+          <label for="yulan-account">Windows 账号</label>
+          <input class="field" id="yulan-account" maxlength="20" autocomplete="off" placeholder="用于创建 Windows 登录账号（1-20 位字母数字）">
+        </div>
+        <div class="fld">
+          <label for="yulan-pass">Windows 密码</label>
+          <input class="field" id="yulan-pass" type="password" maxlength="64" autocomplete="off" placeholder="至少 6 位，下单后用于建号（平台不存储）">
+        </div>
+        <div id="yulan-limit" class="hint" style="margin-top:8px"></div>
+      </div>
+
+      <div class="assure">
+        <div>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 7.4l7.4 4 7.4-4M12 11.4V20"/><path d="M4.6 7.4v9.2L12 20l7.4-3.4V7.4L12 4z"/></svg>
+          <span>顺丰包邮<br>16:00 前当日发出</span>
+        </div>
+        <div>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 11.2a7.4 7.4 0 0 1 13.2-3.6"/><path d="M19.4 12.8a7.4 7.4 0 0 1-13.2 3.6"/><path d="M18.4 4.6v3.4H15M5.6 19.4v-3.4H9"/></svg>
+          <span>七日无理由<br>未使用可退</span>
+        </div>
+        <div>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6l6.6 2.6v5.3c0 4-2.7 7.3-6.6 8.9-3.9-1.6-6.6-4.9-6.6-8.9V6.2z"/><path d="M9.4 12l1.8 1.8 3.4-3.6"/></svg>
+          <span>两年保修<br>损坏可寄修</span>
+        </div>
+      </div>
+
+      <!-- 规范 4 演示：思考计时器 + 自适应网格撑开 -->
+      <section class="think" id="think" data-open="true" aria-label="选购建议">
+        <button class="think__head" id="think-toggle" type="button" aria-expanded="true">
+          <span class="think__dot" aria-hidden="true"></span>
+          <span id="think-title">正在为你核对这件器物的细节</span>
+          <span class="think__timer" aria-label="已思考时间">
+            <span class="num-lock" id="t-sec">00</span><span>.</span><span class="num-lock num-lock--ms" id="t-ms">00</span><span style="margin-left:3px;color:var(--ink-4)">s</span>
+          </span>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--ink-3)"><path d="M12 5.4v13.2M5.4 12h13.2"/></svg>
+        </button>
+        <div class="think__body">
+          <div class="think__inner">
+            <div class="think__pad" id="think-steps"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 折叠面板 -->
+      <div class="panel">
+        <details open>
+          <summary>
+            规格参数
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.4v13.2M5.4 12h13.2"/></svg>
+          </summary>
+          <div class="panel__body">
+            <ul id="spec-list"></ul>
+          </div>
+        </details>
+        <details>
+          <summary>
+            已知不足（我们主动写出来）
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.4v13.2M5.4 12h13.2"/></svg>
+          </summary>
+          <div class="panel__body">
+            <ul>
+              <li>手工拉坯，同一批次的高度会有 3–5mm 差异，属正常工艺范围。 <button class="rev__act" type="button" data-copy="手工拉坯高度差异 3–5mm 属正常工艺范围" data-copy-label style="margin-left:4px;text-decoration:underline;text-underline-offset:2px;"><span data-copy-label>复制说明</span></button></li>
+              <li>哑光釉怕骤冷骤热，刚从冰箱取出不宜立刻冲热水。</li>
+              <li>杯口一圈的釉线会有极轻微的厚薄不均，这是手工施釉的痕迹。</li>
+            </ul>
+          </div>
+        </details>
+        <details>
+          <summary>
+            保养方式
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.4v13.2M5.4 12h13.2"/></svg>
+          </summary>
+          <div class="panel__body">
+            <ul id="care-list"></ul>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 评价 ================= -->
+  <style>
+    /* 发表评价表单：局部样式，仅本页使用 */
+    .rev-form{max-width:640px;margin-top:26px;padding:22px;border-radius:var(--r-lg,18px);background:var(--surface-1);box-shadow:inset 0 0 0 1px var(--hair)}
+    .rev-form__head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+    .rev-form__title{font-size:16px;font-weight:var(--w-semi,600);margin-top:6px}
+    .rev-form__stars{display:flex;gap:2px}
+    .rev-form__stars button{font-size:26px;line-height:1;border:0;background:none;padding:0 2px;cursor:pointer;color:var(--hair-2,#d6d2c9);transition:color .18s}
+    .rev-form__stars button[data-on="1"]{color:var(--accent,#b08a4e)}
+    .rev-form__row{margin-top:12px}
+    .rev-form__row textarea{resize:vertical;min-height:88px}
+    .rev-form__foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap}
+    #rev-empty{margin-top:22px;color:var(--ink-4)}
+  </style>
+  <section class="reviews">
+    <div class="sec-head">
+      <div class="sec-head__left">
+        <p class="eyebrow">REVIEWS · 评价</p>
+        <h2 class="h2" data-stream="买过的人，说了这些话。" data-speed="26"></h2>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="text-align:right;">
+          <div class="num" id="rev-score" style="font-family:Montserrat,sans-serif;font-size:30px;font-weight:var(--w-semi);letter-spacing:-.02em;">—</div>
+          <div class="tiny" id="rev-total">共 0 条评价</div>
+        </div>
+      </div>
+    </div>
+    <div class="rev-grid" id="rev-grid"></div>
+    <p class="tiny" id="rev-empty">还没有评价，来当第一个分享的人吧。</p>
+
+    <!-- 发表评价：写入数据库，评分与评价数随之实时更新 -->
+    <form class="rev-form" id="rev-form" autocomplete="off">
+      <div class="rev-form__head">
+        <div>
+          <p class="eyebrow">WRITE A REVIEW · 写评价</p>
+          <h3 class="rev-form__title">说说这件东西用起来怎么样</h3>
+        </div>
+        <div class="rev-form__stars" id="rev-stars" role="group" aria-label="选择评分">
+          <button type="button" data-star="1" aria-label="1 星">★</button>
+          <button type="button" data-star="2" aria-label="2 星">★</button>
+          <button type="button" data-star="3" aria-label="3 星">★</button>
+          <button type="button" data-star="4" aria-label="4 星">★</button>
+          <button type="button" data-star="5" aria-label="5 星">★</button>
+        </div>
+      </div>
+      <div class="rev-form__row">
+        <input class="field" id="rev-author" type="text" maxlength="30" placeholder="你的称呼（可留空，默认匿名）">
+      </div>
+      <div class="rev-form__row">
+        <textarea class="field" id="rev-body" rows="3" maxlength="600" placeholder="写下真实的使用感受，帮助其他人挑选…"></textarea>
+      </div>
+      <div class="rev-form__foot">
+        <span class="tiny" id="rev-msg"></span>
+        <button class="btn btn--primary btn--sm" id="rev-submit" type="submit">发表评价</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ================= 相关 ================= -->
+  <section class="section" id="rel-section" hidden style="display:none">
+    <div class="sec-head">
+      <div class="sec-head__left">
+        <p class="eyebrow">ALSO · 同一批工坊</p>
+        <h2 class="h2">你可能也会用到</h2>
+      </div>
+      <a class="btn btn--sm btn--ghost" href="index.html#shelf">
+        全部器物
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6.8L18.2 12 13 17.2"/></svg>
+      </a>
+    </div>
+    <div class="grid grid--rel" id="rel-grid"></div>
+  </section>
+</main>
+
+<div class="toast-zone" id="toast-zone" aria-live="polite"></div>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div>
+        <a class="brand" href="index.html"><span class="brand__mark" data-site="name">拾物集</span><span class="brand__en" data-site="name-en">SHIWU</span></a>
+      </div>
+      <div>
+        <h4>选购</h4>
+        <ul>
+          <li><a href="index.html#shelf">全部器物</a></li>
+          <li><a href="index.html#cat-live">家居</a></li>
+          <li><a href="index.html#cat-desk">桌面</a></li>
+          <li><a href="index.html#cat-carry">随行</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>服务</h4>
+        <ul>
+          <li><a href="#" data-copy="support@shiwu.example" data-copy-label>复制客服邮箱</a></li>
+          <li><a href="#">配送与时效</a></li>
+          <li><a href="#">退换与保修</a></li>
+          <li><a href="#">到店自提</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot__bottom">
+      <span data-site="footer-copyright">© 2026 拾物集 SHIWU · 本页为前端演示作品，下单与支付未接入真实服务</span>
+      <span data-site="footer-icp">沪 ICP 备 0000000 号</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/data.js?v=20261114i"></script>
+<script src="assets/api.js?v=20261114i"></script>
+<script src="assets/app.js?v=20261114i"></script>
+<script>
+/* 数据就绪后再渲染：api.js 会先用 /api/products/{id} 覆盖静态数据 */
+window.shopBoot(function () {
+  'use strict';
+  var S = window.SHOP, U = window.Shiwu;
+
+  var params = new URLSearchParams(location.search);
+  var pid = params.get('id') || '';
+  // 不再回退到 S.products[0]：那会是 data.js 里写死的演示商品，
+  // 店主删光商品后详情页会凭空显示一个不存在的「素白手作马克杯」。
+  var P = pid ? U.findProduct(pid) : null;
+
+  var CAT = { live: '家居', desk: '桌面', audio: '声学', carry: '随行' };
+  // 只有「真的找不到商品」才显示占位。颜色 / 规格 / 参数 / 保养在后台都是可选项，
+  // 店主只填名字与价格的新商品，这些字段就是空数组 —— 绝不能因此把整个商品
+  // 判成「不存在」（旧版正是这样，导致后台刚上架的商品在前台一律显示「商品不存在或已下架」）。
+  if (!P || !P.id) {
+    P = { id: '', name: '商品不存在或已下架', sub: '', sku: '', price: 0, was: null,
+          badge: '', img: '', rating: 0, sold: 0, stock: 0, desc: '', story: '', cat: '',
+          colors: [{ n: '—', v: '#cccccc' }], sizes: [{ n: '—', d: 0 }],
+          specs: [], care: [], reviews: [], review_count: 0 };
+    document.title = '商品不存在 · ' + (window.SHOP_SITE && window.SHOP_SITE.site_name ? window.SHOP_SITE.site_name : '拾物集');
+  } else {
+    // 可选字段统一补安全默认值：后面渲染直接取 [0]，空数组会抛 TypeError。
+    // 空字段隐藏逻辑会把对应选择块 / 折叠面板整块隐藏，不会留下「—」占位痕迹。
+    if (!Array.isArray(P.colors) || !P.colors.length) P.colors = [{ n: '—', v: '#cccccc' }];
+    if (!Array.isArray(P.sizes)  || !P.sizes.length)  P.sizes  = [{ n: '—', d: 0 }];
+    if (!Array.isArray(P.specs)) P.specs  = [];
+    if (!Array.isArray(P.care))  P.care   = [];
+    if (!Array.isArray(P.reviews)) P.reviews = [];
+    if (typeof P.rating !== 'number') P.rating = 0;
+    if (typeof P.review_count !== 'number') P.review_count = P.reviews.length;
+  }
+  if (!Array.isArray(S.reviews)) S.reviews = [];
+  if (!Array.isArray(S.thinking)) S.thinking = [];
+  var state = {
+    color: P.colors[0].n,
+    size: P.sizes[0].n,
+    extra: P.sizes[0].d || 0,
+    qty: 1
+  };
+
+  /* ---------- 注入文案 ---------- */
+  document.title = P.name + ' · ' + P.sku + ' — ' + (window.SHOP_SITE && window.SHOP_SITE.site_name ? window.SHOP_SITE.site_name : '拾物集');
+  document.getElementById('crumb-cat').textContent = CAT[P.cat] || '全部';
+  document.getElementById('crumb-cat').setAttribute('href', 'index.html#cat-' + P.cat);
+  document.getElementById('crumb-name').textContent = P.name;
+  document.getElementById('sku').textContent = P.sku + ' · ' + (P.sub.split('·')[0].trim());
+  document.getElementById('p-name').textContent = P.name;
+  document.getElementById('p-sub').textContent = P.sub;
+  document.getElementById('p-price').innerHTML = '<small>¥</small>' + U.esc(P.price);
+  document.getElementById('p-was').textContent = P.was ? '¥' + P.was : '';
+  document.getElementById('p-save').textContent = P.was ? '立省 ¥' + (P.was - P.price) : '';
+  document.getElementById('p-save').hidden = !P.was;
+  document.getElementById('p-was').hidden = !P.was;
+  /* 评价：只用后端返回的真实评论与真实评分，不再读演示假数据 */
+  var reviews = Array.isArray(P.reviews) ? P.reviews : [];
+  var reviewCount = (typeof P.review_count === 'number') ? P.review_count : reviews.length;
+  var rating = (typeof P.rating === 'number' && P.rating > 0) ? P.rating : 0;
+  document.getElementById('p-rating').textContent = rating > 0 ? rating.toFixed(1) : '—';
+  document.getElementById('p-review-count').textContent = reviewCount.toLocaleString('en-US');
+  document.getElementById('p-stock').textContent = (typeof P.stock === 'number' ? P.stock : 0);
+
+  /* ---------- 空字段隐藏：后台未填的字段，前台不显示留白 ---------- */
+  function isBlank(v) { return v == null || (typeof v === 'string' && v.trim() === ''); }
+  function hideEl(el) { if (el) el.hidden = true; }
+  // 副标题 / 商品描述 / SKU 行
+  document.getElementById('p-sub').hidden = isBlank(P.sub);
+  document.getElementById('p-desc').hidden = isBlank(P.desc);
+  document.getElementById('sku').hidden = isBlank(P.sku) && isBlank(P.sub);
+  // 颜色 / 容量选择：无任何有效选项（含占位「—」）则隐藏整块
+  function optsBlank(arr) {
+    return !Array.isArray(arr) || arr.length === 0 ||
+      arr.every(function (o) { return isBlank(o && o.n) || (o && o.n) === '—'; });
+  }
+  if (optsBlank(P.colors)) hideEl(document.getElementById('color-swatches').closest('.opt'));
+  if (optsBlank(P.sizes))  hideEl(document.getElementById('size-swatches').closest('.opt'));
+  // 规格参数 / 保养方式：数组为空则隐藏整个折叠面板
+  if (!P.specs || !P.specs.length) hideEl(document.getElementById('spec-list').closest('details'));
+  if (!P.care || !P.care.length)  hideEl(document.getElementById('care-list').closest('details'));
+  // 评价区不再隐藏：即使 0 条评价也要显示空状态与「发表评价」入口
+  // 思考区：无内容则隐藏
+  if (!S.thinking || !S.thinking.length) hideEl(document.getElementById('think'));
+
+  /* 主图与缩略图：图片地址由后台商品决定，没填就不显示任何图 */
+  var mainImg0 = document.getElementById('main-img');
+  var gallery  = document.querySelector('.gallery');
+  if (P.img && String(P.img).trim()) {
+    mainImg0.src = P.img;
+    mainImg0.alt = P.name;
+    var thumbs = document.querySelectorAll('.thumb');
+    if (thumbs[0]) { var timg = thumbs[0].querySelector('img'); if (timg) timg.src = P.img; }
+    // 后端一个商品只有一张主图，另外两张是写死的演示图，直接隐藏
+    for (var ti = 1; ti < thumbs.length; ti++) thumbs[ti].hidden = true;
+  } else if (gallery) {
+    gallery.hidden = true;   // 无图：整块图集隐藏，绝不再显示旧的演示宣传图
+  }
+
+  /* 评分星：无真实评价时不显示星星，避免残留假的 4.9 分 */
+  function starRow(n) {
+    var out = '';
+    for (var i = 0; i < 5; i++) {
+      out += '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="opacity:' +
+        (i < Math.round(n) ? 1 : 0.26) + '"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>';
+    }
+    return out;
+  }
+  function paintRating(cnt, avg) {
+    document.getElementById('p-rating').textContent = avg > 0 ? avg.toFixed(1) : '—';
+    document.getElementById('p-review-count').textContent = cnt.toLocaleString('en-US');
+    document.getElementById('rev-score').textContent = avg > 0 ? avg.toFixed(1) : '—';
+    document.getElementById('rev-total').textContent = '共 ' + cnt + ' 条评价';
+    var el = document.getElementById('p-stars');
+    el.hidden = avg <= 0;
+    el.innerHTML = starRow(avg);
+  }
+  paintRating(reviewCount, rating);
+
+  /* 描述：重新流式（数据驱动） */
+  var descEl = document.getElementById('p-desc');
+  descEl.setAttribute('data-stream', P.desc);
+  descEl.textContent = '';
+  setTimeout(function () { U.streamify(descEl, { text: P.desc, speed: 13 }); }, 180);
+
+  /* ---------- 规格选择 ---------- */
+  function paintOptions() {
+    document.getElementById('color-swatches').innerHTML = P.colors.map(function (c) {
+      return '<button class="swatch" type="button" aria-pressed="' + (state.color === c.n) + '" data-color="' + U.esc(c.n) + '">' +
+        '<span class="d" style="background:' + U.esc(c.v) + '"></span>' + U.esc(c.n) + '</button>';
+    }).join('');
+
+    document.getElementById('size-swatches').innerHTML = P.sizes.map(function (s) {
+      return '<button class="swatch" type="button" aria-pressed="' + (state.size === s.n) + '" data-size="' + U.esc(s.n) + '" data-extra="' + U.esc(s.d || 0) + '">' +
+        U.esc(s.n) + (s.d ? '<span style="color:var(--ink-4);font-size:11px;">+' + U.esc(s.d) + '</span>' : '') + '</button>';
+    }).join('');
+
+    document.getElementById('color-pick').textContent = state.color;
+    document.getElementById('size-pick').textContent = state.size;
+  }
+  paintOptions();
+
+  document.getElementById('color-swatches').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-color]');
+    if (!b) return;
+    state.color = b.getAttribute('data-color');
+    paintOptions();
+  });
+  document.getElementById('size-swatches').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-size]');
+    if (!b) return;
+    state.size = b.getAttribute('data-size');
+    state.extra = parseInt(b.getAttribute('data-extra'), 10) || 0;
+    paintOptions();
+    paintPrice();
+  });
+
+  /* ---------- 数量与价格 ---------- */
+  var qtyEl = document.getElementById('qty');
+
+  function unit() { return P.price + state.extra; }
+  function paintPrice() {
+    var total = unit() * state.qty;
+    document.getElementById('subtotal').innerHTML =
+      '小计 <b class="num" style="color:var(--ink-1);font-weight:var(--w-med)">¥' + U.esc(total) + '</b>';
+    document.getElementById('p-price').innerHTML = '<small>¥</small>' + U.esc(unit());
+    document.getElementById('qty-hint').textContent = state.qty >= 5 ? '已达单次限购上限' : '单次限购 5 件';
+  }
+
+  function setQty(n) {
+    state.qty = Math.max(1, Math.min(5, n));
+    qtyEl.value = state.qty;
+    paintPrice();
+  }
+  document.getElementById('q-minus').addEventListener('click', function () { setQty(state.qty - 1); });
+  document.getElementById('q-plus').addEventListener('click', function () { setQty(state.qty + 1); });
+  qtyEl.addEventListener('change', function () {
+    setQty(parseInt(qtyEl.value, 10) || 1);
+  });
+  qtyEl.addEventListener('input', function () {
+    var v = qtyEl.value.replace(/[^\d]/g, '');
+    qtyEl.value = v;
+  });
+  paintPrice();
+
+  /* ---------- 加购 / 购买 ---------- */
+  /* 无规格/颜色商品会用占位符「—」占位显示，这个值绝不能写进购物车：
+     后端会按名称去 product_sizes / product_colors 校验，查不到就报「所选规格不存在」。
+     占位只用于页面展示，入库统一转成空字符串（后端会忽略空规格）。 */
+  function normOpt(v) { return (v && v !== '—' && v !== '-' && v !== '暂无') ? v : ''; }
+  function opt() {
+    // 把商品类型一并写进购物袋条目：即便商品列表被缓存/分页/静态兜底污染，
+    // 购物袋也能凭条目自带的 type 正确判断「是否全虚拟」，不会被误收运费。
+    var o = { color: normOpt(state.color), size: normOpt(state.size), extra: state.extra,
+              type: (P && P.type) ? P.type : 'physical' };
+    // 欲蓝财务魔方：把要创建的账号 / 密码带进购物袋，下单时提交给网站用于建号（平台不存储）
+    if (o.type === 'yulan') {
+      o.account = (document.getElementById('yulan-account').value || '').trim();
+      o.password = document.getElementById('yulan-pass').value || '';
+    }
+    return o;
+  }
+
+  // 欲蓝财务魔方：展示账号 / 密码输入框与限购提示，并校验必填
+  function maybeShowYulan() {
+    var box = document.getElementById('yulan-fields');
+    var limitBox = document.getElementById('yulan-limit');
+    if (!box) return;
+    if (P && P.type === 'yulan') {
+      box.style.display = '';
+      var lim = (P.yulan_account_limit && P.yulan_account_limit > 0) ? ('每个账号限购 ' + P.yulan_account_limit + ' 件') : '不限购';
+      var ip = (P.yulan_ip_restrict === 1) ? '（已开启单 IP 限制）' : '';
+      limitBox.textContent = '下单后将在 Windows 服务器创建该账号 · ' + lim + ip;
+    } else {
+      box.style.display = 'none';
+    }
+  }
+  function validateYulan() {
+    if (!(P && P.type === 'yulan')) return true;
+    var acc = (document.getElementById('yulan-account').value || '').trim();
+    var pwd = document.getElementById('yulan-pass').value || '';
+    if (!/^[A-Za-z0-9._-]{1,20}$/.test(acc)) {
+      U.toast('请填写合法的 Windows 账号（1-20 位字母数字）', 'error');
+      return false;
+    }
+    if (pwd.length < 6) {
+      U.toast('密码至少 6 位', 'error');
+      return false;
+    }
+    return true;
+  }
+  maybeShowYulan();
+
+  document.getElementById('btn-cart').addEventListener('click', function (e) {
+    if (!validateYulan()) return;
+    U.addToCart(P.id, state.qty, opt());
+    e.currentTarget.classList.remove('pop');
+    void e.currentTarget.offsetWidth;
+    e.currentTarget.classList.add('pop');
+    U.toast('已放入购物袋 · ' + P.name + ' ×' + state.qty);
+  });
+
+  document.getElementById('btn-buy').addEventListener('click', function () {
+    if (!validateYulan()) return;
+    U.addToCart(P.id, state.qty, opt());
+    setTimeout(function () { location.href = 'cart.html'; }, 380);
+    U.toast('正在前往购物袋…');
+  });
+
+  document.getElementById('btn-like').addEventListener('click', function (e) {
+    var b = e.currentTarget;
+    var on = b.classList.toggle('is-on');
+    b.classList.remove('pop');
+    void b.offsetWidth;
+    b.classList.add('pop');
+    var svg = b.querySelector('svg path');
+    svg.style.fill = on ? 'currentColor' : 'none';
+    b.style.color = on ? '#c0463f' : '';
+    U.toast(on ? '已收藏' : '已取消收藏');
+  });
+
+  /* ---------- 规格 / 保养 ---------- */
+  document.getElementById('spec-list').innerHTML = P.specs.map(function (s) {
+    return '<li style="display:flex;gap:16px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--hair);">' +
+      '<span style="min-width:88px;color:var(--ink-4);font-size:12px;">' + U.esc(s[0]) + '</span>' +
+      '<span style="color:var(--ink-2);font-size:12.5px;" class="num">' + U.esc(s[1]) + '</span></li>';
+  }).join('');
+
+  document.getElementById('care-list').innerHTML = P.care.map(function (c) {
+    return '<li>' + U.esc(c) + '</li>';
+  }).join('');
+
+  /* ---------- 规范 4：思考计时器（等宽、锁宽、不抖） ---------- */
+  var think = document.getElementById('think');
+  var tSec = document.getElementById('t-sec');
+  var tMs = document.getElementById('t-ms');
+  var thinkSteps = document.getElementById('think-steps');
+  var thinkTitle = document.getElementById('think-title');
+  var t0 = performance.now();
+  var stepIndex = 0;
+  var streamed = {};
+
+  thinkSteps.innerHTML = P.specs.length && S.thinking.map(function (s, i) {
+    return '<div class="think__step' + (i === 0 ? ' is-on' : '') + '" data-step="' + i + '">' +
+      '<span class="k">' + U.esc(s.t) + '</span><span>' + U.esc(s.s) + '</span></div>';
+  }).join('');
+
+  // 流式逐条出现（每条约 900ms，模拟逐字晕开）
+  var stepEls = Array.prototype.slice.call(thinkSteps.querySelectorAll('.think__step'));
+  stepEls.forEach(function (el, i) {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(6px)';
+    el.style.filter = 'blur(6px)';
+    el.style.transition = 'opacity .55s cubic-bezier(.22,1,.36,1), transform .55s cubic-bezier(.22,1,.36,1), filter .55s cubic-bezier(.22,1,.36,1)';
+    setTimeout(function () {
+      el.style.opacity = '1';
+      el.style.transform = 'translateY(0)';
+      el.style.filter = 'blur(0)';
+      stepEls.forEach(function (x) { x.classList.remove('is-on'); });
+      el.classList.add('is-on');
+    }, 420 + i * 880);
+    streamed[i] = true;
+  });
+
+  var done = false;
+  function tick() {
+    if (done) return;
+    var el = (performance.now() - t0) / 1000;
+    var sec = Math.floor(el);
+    var ms = Math.floor((el - sec) * 100);
+    // 用 padStart 锁两位 / 两位，宽度由 CSS min-width 兜底
+    tSec.textContent = String(sec).padStart(2, '0');
+    tMs.textContent = String(ms).padStart(2, '0');
+    if (sec >= 5) {
+      done = true;
+      think.classList.add('is-done');
+      thinkTitle.textContent = '已核对完成 · 5 项要点';
+      // 自动收拢，让出空间（自适应网格平滑收，无高度计算）
+      setTimeout(function () {
+        think.setAttribute('data-open', 'false');
+        document.getElementById('think-toggle').setAttribute('aria-expanded', 'false');
+      }, 700);
+      return;
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  document.getElementById('think-toggle').addEventListener('click', function () {
+    var open = think.getAttribute('data-open') === 'true';
+    think.setAttribute('data-open', open ? 'false' : 'true');
+    this.setAttribute('aria-expanded', String(!open));
+  });
+
+  /* ---------- 评价：真实评论列表 ---------- */
+  var revGrid = document.getElementById('rev-grid');
+  var revEmpty = document.getElementById('rev-empty');
+
+  function renderReviewList(list) {
+    list = Array.isArray(list) ? list : [];
+    // 这里刻意不带 data-reveal：观察器只在页面初始化时扫描一次，动态插入的
+    // 卡片不会被加上 .in，会一直停在 opacity:0 —— 这是评论「加载不出来」的根因。
+    revGrid.innerHTML = list.slice(0, 6).map(function (r) {
+      var when = (r.t ? U.esc(r.t) + ' · ' : '') + U.esc(P.name);
+      return '<article class="rev">' +
+        '<div class="rev__top">' +
+          '<span class="avatar">' + U.esc(r.n) + '</span>' +
+          '<div style="flex:1;min-width:0;">' +
+            '<div class="rev__name">' + U.esc(r.n) + '</div>' +
+            '<div class="rev__time num">' + when + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="stars">' + starRow(r.s) + '</div>' +
+        '<p class="rev__text">' + U.esc(r.text) + '</p>' +
+        '<div class="rev__foot">' +
+          '<button class="rev__act" type="button" data-like aria-label="标记这条评价有用">' +
+            '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 20V9.6l4.4-5.2c1 0 1.7.7 1.7 1.7v3.5h4.2c1 0 1.7.9 1.5 1.9l-1.3 6.3c-.2.9-.9 1.5-1.8 1.5H7Z"/></svg>' +
+            '<b class="num" data-base="' + U.esc(r.likes) + '">' + U.esc(r.likes) + '</b>' +
+          '</button>' +
+          '<button class="rev__act" type="button" data-copy="' + U.esc(r.text) + '">' +
+            '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="8.6" y="8.6" width="10.4" height="10.4" rx="2.2"/><path d="M15.4 5.2H6.4a1.2 1.2 0 0 0-1.2 1.2v9"/></svg>' +
+            '<span data-copy-label>复制</span>' +
+          '</button>' +
+        '</div>' +
+      '</article>';
+    }).join('');
+    revEmpty.hidden = list.length > 0;
+  }
+  renderReviewList(reviews);
+
+  /* ---------- 发表评价：写入数据库后刷新列表与评分 ---------- */
+  var revForm = document.getElementById('rev-form');
+  var starBox = document.getElementById('rev-stars');
+  var chosenStars = 5;
+  function paintStars(n) {
+    var btns = starBox.querySelectorAll('button[data-star]');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].setAttribute('data-on', parseInt(btns[i].getAttribute('data-star'), 10) <= n ? '1' : '0');
+    }
+  }
+  paintStars(chosenStars);
+  starBox.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-star]');
+    if (!b) return;
+    chosenStars = parseInt(b.getAttribute('data-star'), 10);
+    paintStars(chosenStars);
+  });
+  revForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var msg = document.getElementById('rev-msg');
+    var btn = document.getElementById('rev-submit');
+    var content = (document.getElementById('rev-body').value || '').trim();
+    if (!content) { msg.textContent = '请先写点使用感受'; U.toast('请先写点使用感受', 'error'); return; }
+    if (!P.id) { msg.textContent = '商品不存在，无法评价'; return; }
+    btn.disabled = true;
+    msg.textContent = '正在提交…';
+    window.ShopAPI.postReview(P.id, {
+      author: (document.getElementById('rev-author').value || '').trim(),
+      stars: chosenStars,
+      body: content
+    }).then(function () {
+      // 重新拉商品，拿到最新的评论列表与真实评分/评价数
+      return window.ShopAPI.product(P.id);
+    }).then(function (fresh) {
+      var list = Array.isArray(fresh.reviews) ? fresh.reviews : [];
+      var cnt = typeof fresh.review_count === 'number' ? fresh.review_count : list.length;
+      var avg = typeof fresh.rating === 'number' ? fresh.rating : 0;
+      renderReviewList(list);
+      paintRating(cnt, avg);
+      document.getElementById('rev-body').value = '';
+      msg.textContent = '评价已发布，谢谢分享！';
+      U.toast('评价已发布', 'success');
+    }).catch(function (err) {
+      msg.textContent = err && err.message ? err.message : '提交失败，请稍后再试';
+      U.toast(msg.textContent, 'error');
+    }).then(function () {
+      btn.disabled = false;
+    });
+  });
+
+  /* ---------- 相关推荐：只用后端真实商品 ----------
+     详情页启动时 api.js 只拉 /api/products/{id}（mergeProduct），并不会清空
+     data.js 里写死的演示商品，S.products 因此一直混着假数据。这里主动再取一次
+     /api/catalog，以真实商品列表为唯一来源；没有其它商品或接口不可用时整块隐藏，
+     绝不展示演示商品。 */
+  var relSection = document.getElementById('rel-section');
+  var relGrid = document.getElementById('rel-grid');
+
+  function hideRel() {
+    relSection.hidden = true;
+    relSection.style.display = 'none';
+    relGrid.innerHTML = '';
+  }
+  function renderRel(list) {
+    var real = (Array.isArray(list) ? list : []).filter(function (x) {
+      return x && x.id && String(x.id) !== String(P.id) &&
+             typeof x.name === 'string' && x.name.trim() !== '';
+    }).slice(0, 4);
+    if (!real.length) { hideRel(); return; }
+    var e = U.esc;
+    relGrid.innerHTML = real.map(function (p) {
+      var img = (typeof p.img === 'string' && p.img) ? p.img : '';
+      var media = img
+        ? '<div class="card__media"><img src="' + e(img) + '" alt="' + e(p.name) + '" loading="lazy" width="1024" height="1024"></div>'
+        : '';   // 无图不渲染破图
+      return '<article class="card" data-id="' + e(p.id) + '" data-name="' + e(p.name) + '" data-price="' + e(p.price) +
+        '" data-img="' + e(img) + '" data-href="product.html?id=' + e(p.id) + '" tabindex="0" role="link" aria-label="' + e(p.name) + '，查看详情">' +
+        media +
+        '<div class="card__body"><div class="card__row"><div><div class="card__name">' + e(p.name) +
+        '</div>' + (p.sub ? '<div class="card__sub">' + e(p.sub) + '</div>' : '') + '</div>' +
+        '<div class="card__price num">¥' + e(p.price) + '</div></div></div></article>';
+    }).join('');
+    relSection.style.display = '';
+    relSection.hidden = false;
+  }
+
+  hideRel();   // 先隐藏，避免闪一下空标题或旧数据
+  if (window.ShopAPI && typeof window.ShopAPI.catalog === 'function') {
+    window.ShopAPI.catalog({ per_page: 50 }).then(function (d) {
+      renderRel(d && d.products);
+    }).catch(function () { hideRel(); });
+  }
+
+  /* 卡片打开详情页：绑定在本页容器上，不依赖 app.js 的全局代理。
+     这样即使浏览器缓存了旧版 app.js（其跳转逻辑在已删除的拖拽函数里），点击依然有效。 */
+  function openCard(c) {
+    var href = c && c.getAttribute('data-href');
+    if (href) location.href = href;
+  }
+  function cardFrom(e) {
+    return e.target && e.target.closest ? e.target.closest('.card') : null;
+  }
+  document.getElementById('rel-grid').addEventListener('click', function (e) {
+    var c = cardFrom(e);
+    if (!c || (e.target.closest && e.target.closest('a,button,input,select,textarea'))) return;
+    e.stopPropagation();      // 阻止 app.js 的 document 级兜底代理重复跳转
+    openCard(c);
+  });
+  document.getElementById('rel-grid').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var c = cardFrom(e);
+    if (!c || (e.target.closest && e.target.closest('a,button,input,select,textarea'))) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openCard(c);
+  });
+
+  /* ---------- 图集交互：切换 + 放大 ---------- */
+  var mainImg = document.getElementById('main-img');
+  document.querySelector('.gallery__thumbs').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-view]');
+    if (!b) return;
+    var ti = b.querySelector('img');
+    if (!ti) return;
+    var src = ti.getAttribute('src');
+    if (!src) return;
+    mainImg.src = src;
+    mainImg.style.animation = 'none';
+    void mainImg.offsetWidth;
+    mainImg.style.animation = '';
+    document.querySelectorAll('.thumb').forEach(function (t) { t.setAttribute('aria-selected', 'false'); });
+    b.setAttribute('aria-selected', 'true');
+  });
+
+  var frame = document.getElementById('frame');
+  frame.addEventListener('mousemove', function (e) {
+    var r = frame.getBoundingClientRect();
+    var x = ((e.clientX - r.left) / r.width) * 100;
+    var y = ((e.clientY - r.top) / r.height) * 100;
+    mainImg.style.transformOrigin = x + '% ' + y + '%';
+    mainImg.style.transform = 'scale(1.7)';
+    mainImg.style.transition = 'transform .18s ease-out';
+  });
+  frame.addEventListener('mouseleave', function () {
+    mainImg.style.transform = 'scale(1)';
+    mainImg.style.transformOrigin = 'center';
+  });
+
+  U.protectOrphans(document);
+});
+</script>
+</body>
+</html>

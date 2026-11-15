@@ -1,0 +1,175 @@
+/* =============================================================
+ * 用户中心 /console 样式
+ * 复用 assets/style.css 的设计变量，只补用户中心专属布局
+ * ============================================================= */
+
+.console { padding: clamp(24px, 4vw, 44px) 0 clamp(50px, 7vw, 90px); min-height: 60vh; }
+.console__loading { padding: 80px 0; text-align: center; color: var(--ink-3); font-size: 13px; }
+
+.head__user { display: flex; align-items: center; gap: 12px; }
+.head__bal { font-size: 12.5px; color: var(--ink-3); }
+.head__bal b { color: var(--ink-1); font-weight: var(--w-semi); }
+
+/* ---------- 登录 / 注册 ---------- */
+.auth { max-width: 420px; margin: clamp(20px, 6vw, 70px) auto; }
+.auth__card {
+  background: var(--surface-1); border-radius: var(--r-lg); padding: clamp(24px, 4vw, 36px);
+  box-shadow: inset 0 0 0 1px var(--hair), var(--sh-1);
+}
+.auth__title { font-size: 22px; font-weight: var(--w-semi); letter-spacing: -.02em; }
+.auth__sub { font-size: 12.5px; color: var(--ink-3); margin-top: 8px; line-height: 1.8; }
+.auth__tabs { display: flex; gap: 6px; margin: 22px 0 20px; padding: 4px; background: var(--surface-3); border-radius: 12px; }
+.auth__tab {
+  flex: 1; height: 36px; border-radius: 9px; font-size: 13px; font-weight: var(--w-med);
+  color: var(--ink-3); transition: background-color .2s, color .2s, box-shadow .2s;
+}
+.auth__tab[aria-selected="true"] { background: var(--surface-2); color: var(--ink-1); box-shadow: var(--sh-1); }
+.auth__form { display: grid; gap: 14px; }
+.auth__label { font-size: 12px; color: var(--ink-3); margin-bottom: 6px; display: block; letter-spacing: .03em; }
+.auth__hint { font-size: 11.5px; color: var(--ink-4); line-height: 1.7; }
+.auth__err {
+  font-size: 12.5px; color: #b23a33; background: color-mix(in srgb, #c0463f 8%, transparent);
+  padding: 9px 12px; border-radius: 9px; line-height: 1.6;
+}
+:root[data-theme="dark"] .auth__err { color: #f0a49c; }
+
+/* ---------- 概览 ---------- */
+.ov { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 26px; }
+.ov__card {
+  background: var(--surface-1); border-radius: var(--r-md); padding: 18px 20px;
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+.ov__k { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-4); font-family: Montserrat, sans-serif; }
+.ov__v { font-family: Montserrat, Noto Sans SC, sans-serif; font-size: 24px; font-weight: var(--w-semi); letter-spacing: -.02em; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.ov__v small { font-size: 12px; font-weight: 400; color: var(--ink-3); margin-left: 3px; }
+.ov__card--accent { background: var(--accent-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent); }
+.ov__card--accent .ov__v { color: var(--accent-ink); }
+
+/* ---------- 标签页 ---------- */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--hair); margin-bottom: 22px; overflow-x: auto; }
+.tab {
+  padding: 11px 16px; font-size: 13.5px; font-weight: var(--w-med); color: var(--ink-3);
+  border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+  transition: color .2s, border-color .2s;
+}
+.tab:hover { color: var(--ink-1); }
+.tab[aria-selected="true"] { color: var(--ink-1); border-bottom-color: var(--accent); }
+
+/* ---------- 订单列表 ---------- */
+.orders { display: grid; gap: 12px; }
+.order {
+  background: var(--surface-1); border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--hair);
+  overflow: hidden; transition: box-shadow .22s, background-color .22s;
+}
+.order:hover { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--hair-2), var(--sh-1); }
+.order__head {
+  display: flex; align-items: center; gap: 14px; padding: 14px 18px;
+  border-bottom: 1px solid var(--hair); flex-wrap: wrap;
+}
+.order__no { font-family: Montserrat, monospace; font-size: 12.5px; font-weight: var(--w-med); letter-spacing: .02em; }
+.order__time { font-size: 11.5px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+.order__spacer { flex: 1; }
+.order__body { padding: 14px 18px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.order__items { flex: 1; min-width: 200px; font-size: 13px; color: var(--ink-2); line-height: 1.7; }
+.order__total { font-family: Montserrat, sans-serif; font-size: 17px; font-weight: var(--w-semi); font-variant-numeric: tabular-nums; }
+.order__acts { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px;
+  border-radius: 7px; font-size: 11.5px; font-weight: var(--w-med);
+  background: var(--surface-3); color: var(--ink-2);
+}
+.badge--pending { background: color-mix(in srgb, #c9973f 14%, transparent); color: #8a6420; }
+.badge--paid { background: var(--accent-soft); color: var(--accent-ink); }
+.badge--shipped { background: color-mix(in srgb, #2f7d5b 13%, transparent); color: #256349; }
+.badge--done { background: color-mix(in srgb, #2f7d5b 13%, transparent); color: #256349; }
+.badge--cancelled { background: var(--surface-3); color: var(--ink-4); }
+:root[data-theme="dark"] .badge--pending { color: #e0b96a; }
+:root[data-theme="dark"] .badge--shipped,
+:root[data-theme="dark"] .badge--done { color: #7fc9a5; }
+
+/* ---------- 订单详情 ---------- */
+.detail-card { background: var(--surface-1); border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--hair); padding: clamp(18px, 3vw, 28px); }
+.detail-card + .detail-card { margin-top: 14px; }
+.detail-card h3 { font-size: 14px; font-weight: var(--w-semi); margin-bottom: 14px; }
+.kv { display: grid; grid-template-columns: 96px 1fr; gap: 8px 14px; font-size: 13px; }
+.kv dt { color: var(--ink-3); }
+.kv dd { margin: 0; color: var(--ink-1); word-break: break-all; }
+
+.items { display: grid; gap: 10px; }
+.item-row { display: flex; align-items: center; gap: 12px; font-size: 13px; padding: 9px 0; border-bottom: 1px solid var(--hair); }
+.item-row:last-child { border-bottom: 0; }
+.item-row__name { flex: 1; }
+.item-row__opt { font-size: 11.5px; color: var(--ink-3); }
+.item-row__qty { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.item-row__amt { font-family: Montserrat, sans-serif; font-variant-numeric: tabular-nums; font-weight: var(--w-med); min-width: 76px; text-align: right; }
+
+/* ---------- 发货内容 ---------- */
+.delivery {
+  border-radius: var(--r-md); padding: 16px 18px; margin-top: 12px;
+  background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--hair);
+}
+.delivery--virtual { background: color-mix(in srgb, var(--accent) 5%, var(--surface-1)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent); }
+.delivery__head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.delivery__name { font-size: 13px; font-weight: var(--w-med); }
+.delivery__content {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px; line-height: 1.95; white-space: pre-wrap; word-break: break-all;
+  color: var(--ink-1); background: var(--surface-2); padding: 12px 14px; border-radius: 9px;
+  box-shadow: inset 0 0 0 1px var(--hair); margin: 0;
+}
+.delivery__copy { margin-left: auto; }
+
+/* ---------- 余额 ---------- */
+.bal-hero {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+  background: var(--surface-1); border-radius: var(--r-lg); padding: clamp(20px, 3vw, 30px);
+  box-shadow: inset 0 0 0 1px var(--hair); margin-bottom: 18px;
+}
+.bal-hero__k { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-4); font-family: Montserrat, sans-serif; }
+.bal-hero__v { font-family: Montserrat, sans-serif; font-size: clamp(30px, 4vw, 42px); font-weight: var(--w-semi); letter-spacing: -.03em; font-variant-numeric: tabular-nums; margin-top: 6px; }
+.bal-hero__v small { font-size: 16px; font-weight: 400; color: var(--ink-3); margin-right: 3px; }
+
+.recharge-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.recharge-amt {
+  height: 38px; padding: 0 16px; border-radius: 10px; font-size: 13px; font-weight: var(--w-med);
+  box-shadow: inset 0 0 0 1px var(--hair-2); color: var(--ink-2); transition: all .2s;
+}
+.recharge-amt:hover { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--hair-3); }
+.recharge-amt[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent); }
+
+.ledger { display: grid; gap: 0; }
+.ledger__row {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center;
+  padding: 13px 2px; border-bottom: 1px solid var(--hair); font-size: 13px;
+}
+.ledger__row:last-child { border-bottom: 0; }
+.ledger__t { font-size: 11.5px; color: var(--ink-4); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.ledger__amt { font-family: Montserrat, sans-serif; font-variant-numeric: tabular-nums; font-weight: var(--w-semi); }
+.ledger__amt--in { color: #2f7d5b; }
+.ledger__amt--out { color: var(--ink-1); }
+:root[data-theme="dark"] .ledger__amt--in { color: #7fc9a5; }
+.ledger__bal { font-size: 11.5px; color: var(--ink-4); font-variant-numeric: tabular-nums; min-width: 84px; text-align: right; }
+
+/* ---------- 通用 ---------- */
+.sec-title { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.sec-title h2 { font-size: 17px; font-weight: var(--w-semi); letter-spacing: -.01em; }
+.empty-box { padding: 56px 20px; text-align: center; color: var(--ink-3); font-size: 13px; }
+.empty-box a { color: var(--accent); }
+.pager { display: flex; justify-content: center; gap: 8px; margin-top: 20px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+@media (max-width: 900px) {
+  .ov { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 620px) {
+  .ov { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ov__card { padding: 14px; }
+  .ov__v { font-size: 20px; }
+  .order__head { padding: 12px 14px; gap: 8px; }
+  .order__body { padding: 12px 14px; }
+  .kv { grid-template-columns: 78px 1fr; }
+  .ledger__row { grid-template-columns: 1fr auto; }
+  .ledger__bal { display: none; }
+  .head__bal { display: none; }
+}
