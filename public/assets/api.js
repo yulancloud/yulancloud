@@ -203,19 +203,24 @@
       notices[n].hidden = !(typeof s.home_notice === 'string' && s.home_notice.trim() !== '');
     }
 
-    // 流式标题：data-stream 属性也要同步，否则动画播的还是旧文案
-    var streams = document.querySelectorAll('[data-site-stream="hero-title"]');
-    for (var j = 0; j < streams.length; j++) {
-      if (typeof s.hero_title === 'string' && s.hero_title) {
-        streams[j].setAttribute('data-stream', s.hero_title);
+    // 流式文案：把后台值同步到 data-stream，供打字动画读取。
+    // 统一用「插槽名 → 设置键」映射：以后要新增一处可后台配置的打字文案，
+    // 只需加一行映射 + 在 HTML 元素上打 data-site-stream，不必再改这段逻辑。
+    // 旧版只同步 hero-title / hero-subtitle，商品区大标题完全没绑定，
+    // 后台「商品区标题」改了，前台永远显示写死的那句。
+    var STREAM_SLOTS = {
+      'hero-title':          'hero_title',
+      'hero-subtitle':       'hero_subtitle',
+      'home-products-title': 'home_products_title'
+    };
+    Object.keys(STREAM_SLOTS).forEach(function (slot) {
+      var v = s[STREAM_SLOTS[slot]];
+      if (typeof v !== 'string' || v === '') return;
+      var nodes = document.querySelectorAll('[data-site-stream="' + slot + '"]');
+      for (var i = 0; i < nodes.length; i++) {
+        nodes[i].setAttribute('data-stream', v);
       }
-    }
-    var subStreams = document.querySelectorAll('[data-site-stream="hero-subtitle"]');
-    for (var k = 0; k < subStreams.length; k++) {
-      if (typeof s.hero_subtitle === 'string' && s.hero_subtitle) {
-        subStreams[k].setAttribute('data-stream', s.hero_subtitle);
-      }
-    }
+    });
 
     // 客服邮箱（复制按钮）
     if (typeof s.support_email === 'string' && s.support_email) {
@@ -235,11 +240,73 @@
     }
   }
 
+  /* ---------- 分类标签（顶栏 / 页脚，后台改了即时生效） ---------- */
+  function escHtml(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    });
+  }
+
+  /**
+   * 旧版把「家居 / 桌面 / 随行」写死在各页 HTML 里，后台分类管理改名（或新增 /
+   * 隐藏分类）后前台纹丝不动。这里在数据就绪后统一用 S.categories 重绘：
+   *   [data-cat-slot]  完整列表容器（支持后台新增分类；innerHTML 前一律转义）
+   *   [data-cat-label] 单个静态占位（改名 / 隐藏生效）
+   * S.categories 来自 /api/catalog，后端不可用时来自 data.js 静态兜底，两者都能生效。
+   */
+  function applyNavCategories() {
+    var S = window.SHOP || {};
+    var all = Array.isArray(S.categories) ? S.categories : [];
+    var cats = all.filter(function (c) { return c && c.id && c.id !== 'all'; });
+    if (!cats.length) return;   // 数据异常时保留 HTML 兜底文案，绝不把导航清空
+
+    var labels = {};
+    cats.forEach(function (c) { labels[c.id] = String(c.label == null ? c.id : c.label); });
+
+    // 1) 静态占位：更新名称与链接；后台已隐藏/删除的分类直接隐藏
+    var marks = document.querySelectorAll('[data-cat-label]');
+    for (var i = 0; i < marks.length; i++) {
+      var el = marks[i], id = el.getAttribute('data-cat-label');
+      if (Object.prototype.hasOwnProperty.call(labels, id)) {
+        el.textContent = labels[id];
+        if (el.tagName === 'A') el.setAttribute('href', 'index.html#cat-' + encodeURIComponent(id));
+      } else {
+        el.style.display = 'none';
+      }
+    }
+
+    // 2) 动态插槽：完整分类列表（含后台新增的分类）
+    var slots = document.querySelectorAll('[data-cat-slot]');
+    for (var j = 0; j < slots.length; j++) {
+      var slot = slots[j];
+      var mode = slot.getAttribute('data-cat-slot') || 'nav';
+      var max = parseInt(slot.getAttribute('data-cat-max') || '0', 10);
+      var list = max > 0 ? cats.slice(0, max) : cats;
+      var html = '';
+      for (var k = 0; k < list.length; k++) {
+        var c = list[k];
+        var href = 'index.html#cat-' + encodeURIComponent(c.id);
+        var label = escHtml(labels[c.id]);
+        html += mode === 'list'
+          ? '<li><a href="' + href + '">' + label + '</a></li>'
+          : '<a href="' + href + '">' + label + '</a>';
+      }
+      slot.insertAdjacentHTML('beforebegin', html);
+      if (slot.parentNode) slot.parentNode.removeChild(slot);
+    }
+  }
+
   /* ---------- 启动：先取数，再跑页面脚本 ---------- */
   var booted = false;
   function runBoot() {
     if (booted) return;
     booted = true;
+    // 分类标签必须在页面脚本之前重绘：product.html 的面包屑、index.html 的 chips
+    // 都要读同一份 S.categories，避免顶栏与筛选器显示不一致。
+    try { applyNavCategories(); } catch (e) { console.error('[shop] categories error', e); }
+    // 置位后再 dispatch：app.js 的打字动画据此判断「站点文案已就绪」才启动，
+    // 否则会先用 HTML 里写死的旧文案播放，并在动画结束时覆盖掉后台新文案。
+    window.__SHOP_READY__ = true;
     var fns = window.__shopBootQueue || [];
     window.__shopBootQueue = [];
     fns.forEach(function (fn) {

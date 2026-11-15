@@ -230,6 +230,8 @@ final class AdminService
         }
         $desc  = self::text($in['description'] ?? '', 0, 4000, '商品描述');
         $story = self::text($in['story'] ?? '', 0, 4000, '品牌故事');
+        // v1.1：商品缺点 / 已知不足（每行一条，前台详情页逐条展示）
+        $flaws = self::text($in['flaws'] ?? '', 0, 2000, '商品缺点');
         $stock = self::intVal($in['stock'] ?? 0, 0, 1000000, '库存');
         $sort  = self::intVal($in['sort'] ?? 0, -100000, 100000, '排序');
         $status = (string)($in['status'] ?? 'active');
@@ -274,7 +276,7 @@ final class AdminService
 
         Db::tx(function (PDO $pdo) use (
             $isNew, $id, $sku, $name, $sub, $catId, $price, $was, $badge, $img,
-            $rating, $stock, $desc, $story, $status, $sort, $type, $colors, $sizes, $specs, $care, $hasChildren
+            $rating, $stock, $desc, $story, $flaws, $status, $sort, $type, $colors, $sizes, $specs, $care, $hasChildren
         ): void {
             if ($isNew) {
                 $pdo->prepare(
@@ -304,6 +306,19 @@ final class AdminService
                 if ($chk->fetchColumn() === false) {
                     Response::fail('not_found', '商品不存在', 404);
                 }
+            }
+            // v1.1：商品缺点 / 已知不足。用独立 UPDATE 而不是塞进上面的 INSERT/UPDATE，
+            // 避免改动既有占位符序列；旧库未跑迁移时该列不存在，先探测后写入，
+            // 保证「只升级源码、暂未迁移」的站点也能正常保存商品。
+            $hasFlawsCol = false;
+            foreach ($pdo->query('PRAGMA table_info(products)')->fetchAll() as $col) {
+                if (strcasecmp((string)($col['name'] ?? ''), 'flaws') === 0) {
+                    $hasFlawsCol = true;
+                    break;
+                }
+            }
+            if ($hasFlawsCol) {
+                $pdo->prepare('UPDATE products SET flaws = ? WHERE id = ?')->execute([$flaws, $id]);
             }
             if ($hasChildren) {
                 self::replaceChildren($id, $colors, $sizes, $specs, $care);

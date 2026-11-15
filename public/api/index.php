@@ -182,7 +182,7 @@ switch (true) {
             'installed' => $installed,
             'version' => '5.5',
             // 构建号：升级后用 curl /api/health 看这里即可确认服务器跑的是不是新代码
-            'build' => '20261114i',
+            'build' => '20261115a',
             'php' => PHP_VERSION,
         ]);
 

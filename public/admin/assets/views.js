@@ -725,7 +725,7 @@
     // 导致店主在后台根本改不了这些文案（保存时也不会带上）。
     { key: 'site_intro',          label: '站点介绍',     hint: '关于我们，可多行', max: 2000, type: 'textarea' },
     { key: 'home_notice',         label: '首页公告',     hint: '留空则不显示', max: 300, type: 'textarea' },
-    { key: 'home_products_title', label: '商品区标题',   hint: '首页在售器物区的标题', max: 40, type: 'text' },
+    { key: 'home_products_title', label: '商品区标题',   hint: '首页「在售」区的大标题（打字动画文案），后台改完前台即时生效', max: 120, type: 'text' },
     { key: 'footer_contact',      label: '页脚联系方式', hint: '留空则不显示', max: 300, type: 'textarea' },
     { key: 'console_welcome',     label: '用户中心欢迎语', hint: '如「欢迎回来」', max: 60, type: 'text' },
     { key: 'support_wechat',      label: '客服微信',     hint: '留空则不显示', max: 60, type: 'text' },

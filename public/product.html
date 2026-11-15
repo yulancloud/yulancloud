@@ -57,7 +57,7 @@ sweep(document)})();</script>
 <meta name="theme-color" content="#f5f6f8">
 <title data-site-title>素白手作马克杯 · SW-001 — 拾物集</title>
 <meta name="description" content="景德镇高白泥手工拉坯，哑光釉。300ml / 420ml 两种容量，洗碗机与微波炉可用。">
-<link rel="stylesheet" href="assets/style.css?v=20261114i">
+<link rel="stylesheet" href="assets/style.css?v=20261115a">
 </head>
 <body>
 
@@ -70,9 +70,7 @@ sweep(document)})();</script>
     </a>
     <nav class="nav" aria-label="主导航">
       <a href="index.html">全部器物</a>
-      <a href="index.html#cat-live">家居</a>
-      <a href="index.html#cat-desk">桌面</a>
-      <a href="index.html#cat-carry">随行</a>
+      <span data-cat-slot="nav" style="display:contents"><a href="index.html#cat-live">家居</a><a href="index.html#cat-desk">桌面</a><a href="index.html#cat-carry">随行</a></span>
       <a href="index.html#shelf">匠人手记</a>
     </nav>
     <span class="head__spacer"></span>
@@ -251,17 +249,14 @@ sweep(document)})();</script>
             <ul id="spec-list"></ul>
           </div>
         </details>
-        <details>
+        <details id="flaw-panel">
           <summary>
             已知不足（我们主动写出来）
             <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.4v13.2M5.4 12h13.2"/></svg>
           </summary>
           <div class="panel__body">
-            <ul>
-              <li>手工拉坯，同一批次的高度会有 3–5mm 差异，属正常工艺范围。 <button class="rev__act" type="button" data-copy="手工拉坯高度差异 3–5mm 属正常工艺范围" data-copy-label style="margin-left:4px;text-decoration:underline;text-underline-offset:2px;"><span data-copy-label>复制说明</span></button></li>
-              <li>哑光釉怕骤冷骤热，刚从冰箱取出不宜立刻冲热水。</li>
-              <li>杯口一圈的釉线会有极轻微的厚薄不均，这是手工施釉的痕迹。</li>
-            </ul>
+            <!-- v1.1：逐条内容来自后台「编辑商品 → 商品缺点 / 已知不足」，不再写死 -->
+            <ul id="flaw-list"></ul>
           </div>
         </details>
         <details>
@@ -363,9 +358,9 @@ sweep(document)})();</script>
         <h4>选购</h4>
         <ul>
           <li><a href="index.html#shelf">全部器物</a></li>
-          <li><a href="index.html#cat-live">家居</a></li>
-          <li><a href="index.html#cat-desk">桌面</a></li>
-          <li><a href="index.html#cat-carry">随行</a></li>
+          <li><a href="index.html#cat-live" data-cat-label="live">家居</a></li>
+          <li><a href="index.html#cat-desk" data-cat-label="desk">桌面</a></li>
+          <li><a href="index.html#cat-carry" data-cat-label="carry">随行</a></li>
         </ul>
       </div>
       <div>
@@ -385,9 +380,9 @@ sweep(document)})();</script>
   </div>
 </footer>
 
-<script src="assets/data.js?v=20261114i"></script>
-<script src="assets/api.js?v=20261114i"></script>
-<script src="assets/app.js?v=20261114i"></script>
+<script src="assets/data.js?v=20261115a"></script>
+<script src="assets/api.js?v=20261115a"></script>
+<script src="assets/app.js?v=20261115a"></script>
 <script>
 /* 数据就绪后再渲染：api.js 会先用 /api/products/{id} 覆盖静态数据 */
 window.shopBoot(function () {
@@ -400,7 +395,15 @@ window.shopBoot(function () {
   // 店主删光商品后详情页会凭空显示一个不存在的「素白手作马克杯」。
   var P = pid ? U.findProduct(pid) : null;
 
-  var CAT = { live: '家居', desk: '桌面', audio: '声学', carry: '随行' };
+  // v1.1：分类名从 S.categories 读取（后台「分类管理」改名后前台面包屑同步变化），
+  // 旧版这里写死了一张 CAT 表，后台把「桌面」改成别的名字，面包屑仍旧显示「桌面」。
+  function catLabel(id) {
+    var cs = (window.SHOP && window.SHOP.categories) || [];
+    for (var i = 0; i < cs.length; i++) {
+      if (cs[i] && cs[i].id === id) return cs[i].label || '全部';
+    }
+    return '全部';
+  }
   // 只有「真的找不到商品」才显示占位。颜色 / 规格 / 参数 / 保养在后台都是可选项，
   // 店主只填名字与价格的新商品，这些字段就是空数组 —— 绝不能因此把整个商品
   // 判成「不存在」（旧版正是这样，导致后台刚上架的商品在前台一律显示「商品不存在或已下架」）。
@@ -408,7 +411,7 @@ window.shopBoot(function () {
     P = { id: '', name: '商品不存在或已下架', sub: '', sku: '', price: 0, was: null,
           badge: '', img: '', rating: 0, sold: 0, stock: 0, desc: '', story: '', cat: '',
           colors: [{ n: '—', v: '#cccccc' }], sizes: [{ n: '—', d: 0 }],
-          specs: [], care: [], reviews: [], review_count: 0 };
+          specs: [], care: [], flaws: '', reviews: [], review_count: 0 };
     document.title = '商品不存在 · ' + (window.SHOP_SITE && window.SHOP_SITE.site_name ? window.SHOP_SITE.site_name : '拾物集');
   } else {
     // 可选字段统一补安全默认值：后面渲染直接取 [0]，空数组会抛 TypeError。
@@ -432,7 +435,7 @@ window.shopBoot(function () {
 
   /* ---------- 注入文案 ---------- */
   document.title = P.name + ' · ' + P.sku + ' — ' + (window.SHOP_SITE && window.SHOP_SITE.site_name ? window.SHOP_SITE.site_name : '拾物集');
-  document.getElementById('crumb-cat').textContent = CAT[P.cat] || '全部';
+  document.getElementById('crumb-cat').textContent = catLabel(P.cat);
   document.getElementById('crumb-cat').setAttribute('href', 'index.html#cat-' + P.cat);
   document.getElementById('crumb-name').textContent = P.name;
   document.getElementById('sku').textContent = P.sku + ' · ' + (P.sub.split('·')[0].trim());
@@ -468,6 +471,13 @@ window.shopBoot(function () {
   // 规格参数 / 保养方式：数组为空则隐藏整个折叠面板
   if (!P.specs || !P.specs.length) hideEl(document.getElementById('spec-list').closest('details'));
   if (!P.care || !P.care.length)  hideEl(document.getElementById('care-list').closest('details'));
+  // v1.1：商品缺点 / 已知不足 —— 后台逐件填写，每行一条；留空则整栏隐藏
+  var flawList = document.getElementById('flaw-list');
+  var flawLines = String(P.flaws || '').split(/\r?\n/)
+    .map(function (t) { return t.trim(); })
+    .filter(function (t) { return t !== ''; });
+  if (!flawLines.length) hideEl(flawList.closest('details'));
+  else flawList.innerHTML = flawLines.map(function (t) { return '<li>' + U.esc(t) + '</li>'; }).join('');
   // 评价区不再隐藏：即使 0 条评价也要显示空状态与「发表评价」入口
   // 思考区：无内容则隐藏
   if (!S.thinking || !S.thinking.length) hideEl(document.getElementById('think'));

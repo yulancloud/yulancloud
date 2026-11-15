@@ -41,8 +41,8 @@ final class Seeder
             // ---------- 商品 ----------
             $pStmt = $pdo->prepare(
                 'INSERT INTO products
-                 (id, sku, name, sub, cat_id, price_cents, was_cents, badge, img, rating, sold, stock, description, story, status, sort)
-                 VALUES (:id, :sku, :name, :sub, :cat, :price, :was, :badge, :img, :rating, :sold, :stock, :desc, :story, \'active\', :sort)
+                 (id, sku, name, sub, cat_id, price_cents, was_cents, badge, img, rating, sold, stock, description, story, flaws, status, sort)
+                 VALUES (:id, :sku, :name, :sub, :cat, :price, :was, :badge, :img, :rating, :sold, :stock, :desc, :story, :flaws, \'active\', :sort)
                  ON CONFLICT(id) DO UPDATE SET
                     sku = excluded.sku, name = excluded.name, sub = excluded.sub, cat_id = excluded.cat_id,
                     price_cents = excluded.price_cents, was_cents = excluded.was_cents,
@@ -68,7 +68,8 @@ final class Seeder
                     ':was' => $p['was'] === null ? null : $p['was'] * 100,
                     ':badge' => $p['badge'], ':img' => $p['img'], ':rating' => $p['rating'],
                     ':sold' => $p['sold'], ':stock' => $p['stock'], ':desc' => $p['desc'],
-                    ':story' => $p['story'], ':sort' => ($i + 1) * 10,
+                    ':story' => $p['story'], ':flaws' => $p['flaws'] ?? '',
+                    ':sort' => ($i + 1) * 10,
                 ]);
 
                 $delColors->execute([$p['id']]);

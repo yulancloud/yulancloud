@@ -58,7 +58,7 @@ sweep(document)})();</script>
 <title data-site-title>拾物集 SHIWU — 少而耐的日用器物</title>
 <meta name="description" content="拾物集是一个只做少量品类的日用器物小店：手工陶瓷、木作、黄铜与亚麻。每件物品都能用很久。">
 <meta name="shop-api-base" content="">
-<link rel="stylesheet" href="assets/style.css?v=20261114i">
+<link rel="stylesheet" href="assets/style.css?v=20261115a">
 </head>
 <body>
 
@@ -73,9 +73,7 @@ sweep(document)})();</script>
 
     <nav class="nav" aria-label="主导航">
       <a href="index.html" aria-current="page">全部器物</a>
-      <a href="index.html#cat-live">家居</a>
-      <a href="index.html#cat-desk">桌面</a>
-      <a href="index.html#cat-carry">随行</a>
+      <span data-cat-slot="nav" style="display:contents"><a href="index.html#cat-live">家居</a><a href="index.html#cat-desk">桌面</a><a href="index.html#cat-carry">随行</a></span>
       <a href="#shelf" data-featured-link>精选器物</a>
     </nav>
 
@@ -166,7 +164,7 @@ sweep(document)})();</script>
       <div class="sec-head">
         <div class="sec-head__left">
           <p class="eyebrow">THE SHELF · 在售</p>
-          <h2 class="h2" data-stream="八件在售器物，每一件都写清了缺陷。" data-speed="22"></h2>
+          <h2 class="h2" data-site="home-products-title" data-site-stream="home-products-title" data-stream="八件在售器物，每一件都写清了缺陷。" data-speed="22"></h2>
         </div>
         <p class="lede" style="max-width:300px;margin:0 0 4px;">
           点击器物进入详情页，挑选规格后加入购物袋或立即购买。
@@ -242,9 +240,9 @@ sweep(document)})();</script>
         <h4>选购</h4>
         <ul>
           <li><a href="index.html#shelf">全部器物</a></li>
-          <li><a href="index.html#cat-live">家居</a></li>
-          <li><a href="index.html#cat-desk">桌面</a></li>
-          <li><a href="index.html#cat-carry">随行</a></li>
+          <li><a href="index.html#cat-live" data-cat-label="live">家居</a></li>
+          <li><a href="index.html#cat-desk" data-cat-label="desk">桌面</a></li>
+          <li><a href="index.html#cat-carry" data-cat-label="carry">随行</a></li>
         </ul>
       </div>
       <div>
@@ -264,9 +262,9 @@ sweep(document)})();</script>
   </div>
 </footer>
 
-<script src="assets/data.js?v=20261114i"></script>
-<script src="assets/api.js?v=20261114i"></script>
-<script src="assets/app.js?v=20261114i"></script>
+<script src="assets/data.js?v=20261115a"></script>
+<script src="assets/api.js?v=20261115a"></script>
+<script src="assets/app.js?v=20261115a"></script>
 <script>
 /* 数据就绪后再渲染：api.js 会先用 /api/catalog 覆盖静态数据，失败则回退 data.js */
 window.shopBoot(function () {

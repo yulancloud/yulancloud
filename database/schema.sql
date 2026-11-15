@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS products (
   stock       INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
   description TEXT NOT NULL DEFAULT '',
   story       TEXT NOT NULL DEFAULT '',
+  -- v1.1：商品缺点 / 已知不足（多行文本，每行一条；留空则前台详情页整栏隐藏）
+  -- 后台「编辑商品」里可逐件填写，不再写死在 product.html 的演示文案里。
+  flaws       TEXT NOT NULL DEFAULT '',
   -- v5：商品类型。virtual=虚拟商品（支付后按模板自动发货），physical=实体商品（走待发货流程）
   -- v5.5：新增 yulan=欲蓝财务魔方商品（下单即在 Windows 服务器创建账号，按「连接地址+账号」交付）
   type        TEXT NOT NULL DEFAULT 'physical'

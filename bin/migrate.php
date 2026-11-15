@@ -185,6 +185,7 @@ CREATE TABLE products (
   stock       INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
   description TEXT NOT NULL DEFAULT '',
   story       TEXT NOT NULL DEFAULT '',
+  flaws       TEXT NOT NULL DEFAULT '',
   type        TEXT NOT NULL DEFAULT 'physical' CHECK (type IN ('virtual', 'physical', 'yulan')),
   delivery_template TEXT NOT NULL DEFAULT '',
   yulan_account_limit INTEGER NOT NULL DEFAULT 0 CHECK (yulan_account_limit >= 0),
@@ -203,7 +204,7 @@ SQL
     );
     // 历史数据的 created_at/updated_at 可能为 NULL（旧库无默认值时），COALESCE 兜底；
     // 旧库若缺 yulan 各列，按默认值补齐（列顺序与 INSERT 列清单严格一一对应）
-    $pdo->exec("INSERT INTO products ({$cols}, yulan_account_limit, yulan_ip_restrict,
+    $pdo->exec("INSERT INTO products ({$cols}, flaws, yulan_account_limit, yulan_ip_restrict,
                 yulan_server_ip, yulan_server_port, yulan_server_user, yulan_server_pass, yulan_rdp_host)
                 SELECT
                   id, sku, name, sub, cat_id, price_cents, was_cents, badge, img, rating, sold,
@@ -212,6 +213,7 @@ SQL
                   status, sort,
                   COALESCE(created_at, datetime('now')),
                   COALESCE(updated_at, datetime('now')),
+                  COALESCE(flaws, ''),
                   COALESCE(yulan_account_limit, 0),
                   COALESCE(yulan_ip_restrict, 0),
                   COALESCE(yulan_server_ip, ''), COALESCE(yulan_server_port, ''),
@@ -324,6 +326,13 @@ foreach (['yulan_server_ip', 'yulan_server_port', 'yulan_server_user', 'yulan_se
     }
 }
 
+// v1.1：商品缺点 / 已知不足（后台可逐件填写，前台详情页展示）
+if (!columnExists($pdo, 'products', 'flaws')) {
+    $steps[] = "products 增加列 flaws（商品缺点 / 已知不足）";
+} else {
+    echo "✓ products.flaws 已存在\n";
+}
+
 // ---------- 2.5 yulan_accounts 表 ----------
 if (!tableExists($pdo, 'yulan_accounts')) {
     $steps[] = '创建 yulan_accounts 表（欲蓝已建账号流水）';
@@ -412,6 +421,11 @@ try {
         if (!columnExists($pdo, 'products', $col)) {
             $pdo->exec("ALTER TABLE products ADD COLUMN {$col} {$def}");
         }
+    }
+
+    // v1.1：商品缺点 / 已知不足（多行文本，每行一条；留空则前台隐藏该栏）
+    if (!columnExists($pdo, 'products', 'flaws')) {
+        $pdo->exec("ALTER TABLE products ADD COLUMN flaws TEXT NOT NULL DEFAULT ''");
     }
 
     // yulan_accounts 表

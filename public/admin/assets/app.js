@@ -181,6 +181,10 @@
             '<textarea class="field" id="f-desc" maxlength="4000">' + U.esc(p ? p.description : '') + '</textarea></div>' +
           '<div class="fld full"><label for="f-story">品牌故事</label>' +
             '<textarea class="field" id="f-story" maxlength="4000">' + U.esc(p ? p.story : '') + '</textarea></div>' +
+
+          '<div class="fld full"><label for="f-flaws">商品缺点 / 已知不足</label>' +
+            '<textarea class="field" id="f-flaws" maxlength="2000" placeholder="每行一条，如「手工拉坯，同批次高度会有 3–5mm 差异」">' + U.esc(p ? (p.flaws || '') : '') + '</textarea>' +
+            '<div class="hint">每行一条，前台详情页「已知不足」栏逐条展示；留空则整栏自动隐藏。</div></div>' +
         '</div>' +
 
         '<div class="sec-title">颜色</div>' +
@@ -327,6 +331,7 @@
           img: document.getElementById('f-img').value.trim(),
           description: document.getElementById('f-desc').value,
           story: document.getElementById('f-story').value,
+          flaws: document.getElementById('f-flaws').value,
           colors: collectRows(rowsColors, function (row) {
             var n = row.querySelector('[data-k="name"]').value.trim();
             if (!n) return null;

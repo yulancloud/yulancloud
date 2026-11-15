@@ -191,6 +191,9 @@ final class ProductRepo
             'stock' => (int)$r['stock'],
             'desc'  => $r['description'],
             'story' => $r['story'],
+            // v1.1：商品缺点 / 已知不足，多行文本（每行一条）。
+            // 旧库未升级、该列不存在时安全回退空串，前台整栏隐藏。
+            'flaws' => (string)($r['flaws'] ?? ''),
         ];
     }
 }

@@ -46,8 +46,8 @@ final class SettingsService
         'site_intro'       => ['default' => '拾物集只做少数几种日用器物。我们不追新款，只把同一件东西反复改到不用再改。', 'max' => 2000],
         // 首页公告条（留空则不显示）
         'home_notice'      => ['default' => '', 'max' => 300],
-        // 首页商品区标题
-        'home_products_title' => ['default' => '在售器物', 'max' => 40],
+        // 首页商品区大标题（v1.1 起真正驱动前台 h2 打字文案，旧版前台写死、后台改了不生效）
+        'home_products_title' => ['default' => '八件在售器物，每一件都写清了缺陷。', 'max' => 120],
         // 页脚联系信息
         'footer_contact'   => ['default' => '', 'max' => 300],
         // 用户中心欢迎语
