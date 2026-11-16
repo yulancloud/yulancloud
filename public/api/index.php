@@ -115,6 +115,8 @@ require_once $SRC . '/SettingsService.php';
 require_once $SRC . '/YulanConnector.php';
 require_once $SRC . '/YulanProvision.php';
 require_once $SRC . '/ExtensionService.php';   // v1.2 后台主题 / 插件上传安装
+require_once $SRC . '/MailService.php';        // v1.2.1 smtp-login 功能底座
+require_once $SRC . '/AdminAccountService.php';// v1.2.1 multi-admin 功能底座
 require_once $SRC . '/Installer.php';
 
 $cfg = require $ROOT . '/config/config.php';
@@ -184,7 +186,7 @@ switch (true) {
             'installed' => $installed,
             'version' => '5.5',
             // 构建号：升级后用 curl /api/health 看这里即可确认服务器跑的是不是新代码
-            'build' => '20261116d',
+            'build' => '20261116e',
             'php' => PHP_VERSION,
         ]);
 
@@ -205,6 +207,16 @@ switch (true) {
     // 不用像 v1 教程那样手工 bump 全站 ?v= 版本号，也不会被升级覆盖。
     case $path === '/api/theme.css' && $method === 'GET':
         Response::css(ExtensionService::activeCss());
+
+    // v1.2.1 已启用的功能插件标识（登录页据此决定显示深色切换 / 邮箱登录入口）。
+    // 只回传功能名布尔，不含任何配置或凭据，可公开。
+    case $path === '/api/features' && $method === 'GET':
+        $features = ExtensionService::enabledFeatures();
+        Response::ok([
+            'smtp_login'      => in_array('smtp-login', $features, true),
+            'login_dark_mode' => in_array('login-dark-mode', $features, true),
+            'multi_admin'     => in_array('multi-admin', $features, true),
+        ]);
 
     // ---------------- 安装向导 ----------------
 
@@ -743,6 +755,42 @@ switch (true) {
         AdminAuth::logout();
         Response::ok(['ok' => true]);
 
+    // ---- v1.2.1 邮箱验证码登录（需 smtp-login 插件启用）----
+    case $path === '/api/admin/login/email/send-code' && $method === 'POST':
+        if (!ExtensionService::isEnabled('smtp-login')) {
+            Response::fail('not_found', '接口不存在', 404);
+        }
+        RateLimiter::guard('admin');
+        $body = readJsonBody();
+        $email = (string)($body['email'] ?? '');
+        if (mb_strlen($email, 'UTF-8') > 200) {
+            Response::fail('bad_email', '邮箱格式不正确', 400);
+        }
+        $r = MailService::sendCode($email);
+        if (!$r['ok']) {
+            Response::fail('send_failed', $r['message'], 400);
+        }
+        Response::ok(['ok' => true, 'message' => $r['message']]);
+
+    case $path === '/api/admin/login/email/verify' && $method === 'POST':
+        if (!ExtensionService::isEnabled('smtp-login')) {
+            Response::fail('not_found', '接口不存在', 404);
+        }
+        RateLimiter::guard('admin');
+        $body = readJsonBody();
+        $email = (string)($body['email'] ?? '');
+        $code  = (string)($body['code'] ?? '');
+        $uid = MailService::verifyCode($email, $code);
+        if ($uid === null) {
+            Audit::log(null, strtolower(trim($email)), 'login_email_failed', '', '验证码错误或已过期');
+            Response::fail('bad_code', '验证码错误或已过期', 401);
+        }
+        $r = AdminAuth::loginById($uid, 'login_email');
+        if ($r === null) {
+            Response::fail('account_unavailable', '该账号已停用', 403);
+        }
+        Response::ok(['user' => $r['user']]);
+
     // 当前登录态
     case $path === '/api/admin/me' && $method === 'GET':
         $u = AdminAuth::user();
@@ -1136,14 +1184,131 @@ switch (true) {
         Audit::log($op['id'], $op['username'], 'extension_uninstall', $m[1] . ':' . $m[2], '');
         Response::ok($r);
 
+    // ================= v1.2.1 功能插件底座 =================
+
+    // --- SMTP 邮件服务器配置（需 smtp-login 插件） ---
+    case $path === '/api/admin/mail/settings' && $method === 'GET':
+        if (!ExtensionService::isEnabled('smtp-login')) {
+            Response::fail('not_found', '接口不存在', 404);
+        }
+        AdminAuth::requireOwner();
+        Response::ok(MailService::adminConfig());
+
+    case $path === '/api/admin/mail/settings' && $method === 'PUT':
+        if (!ExtensionService::isEnabled('smtp-login')) {
+            Response::fail('not_found', '接口不存在', 404);
+        }
+        $op = AdminAuth::requireOwner();
+        RateLimiter::guard('admin');
+        $body = readJsonBody();
+        try {
+            $r = MailService::saveConfig($body['config'] ?? $body);
+        } catch (RuntimeException $e) {
+            Response::fail('invalid_config', $e->getMessage(), 400);
+        }
+        Audit::log($op['id'], $op['username'], 'mail_config_save', '', '');
+        Response::ok($r);
+
+    case $path === '/api/admin/mail/test' && $method === 'POST':
+        if (!ExtensionService::isEnabled('smtp-login')) {
+            Response::fail('not_found', '接口不存在', 404);
+        }
+        AdminAuth::requireOwner();
+        RateLimiter::guard('admin');
+        $body = readJsonBody();
+        try {
+            MailService::sendTest((string)($body['to'] ?? ''));
+        } catch (RuntimeException $e) {
+            Response::fail('send_failed', $e->getMessage(), 400);
+        }
+        Response::ok(['ok' => true]);
+
+    // --- 多管理员账号（需 multi-admin 插件） ---
+    case $path === '/api/admin/admins' && $method === 'GET':
+        if (!ExtensionService::isEnabled('multi-admin')) {
+            Response::fail('not_found', '接口不存在', 404);
+        }
+        AdminAuth::requireOwner();
+        Response::ok(AdminAccountService::list());
+
+    case $path === '/api/admin/admins' && $method === 'POST':
+        if (!ExtensionService::isEnabled('multi-admin')) {
+            Response::fail('not_found', '接口不存在', 404);
+        }
+        $op = AdminAuth::requireOwner();
+        RateLimiter::guard('admin');
+        $body = readJsonBody();
+        try {
+            $r = AdminAccountService::create($body, (int)$op['id']);
+        } catch (RuntimeException $e) {
+            Response::fail('invalid_param', $e->getMessage(), 400);
+        }
+        Response::ok($r);
+
+    case preg_match('#^/api/admin/admins/(\d+)/status$#', $path, $m) === 1 && $method === 'POST':
+        if (!ExtensionService::isEnabled('multi-admin')) {
+            Response::fail('not_found', '接口不存在', 404);
+        }
+        $op = AdminAuth::requireOwner();
+        RateLimiter::guard('admin');
+        $body = readJsonBody();
+        try {
+            $r = AdminAccountService::setStatus((int)$m[1], (string)($body['status'] ?? ''), (int)$op['id']);
+        } catch (RuntimeException $e) {
+            Response::fail('invalid_param', $e->getMessage(), 400);
+        }
+        Response::ok($r);
+
+    case preg_match('#^/api/admin/admins/(\d+)/reset-password$#', $path, $m) === 1 && $method === 'POST':
+        if (!ExtensionService::isEnabled('multi-admin')) {
+            Response::fail('not_found', '接口不存在', 404);
+        }
+        $op = AdminAuth::requireOwner();
+        RateLimiter::guard('admin');
+        try {
+            $r = AdminAccountService::resetPassword((int)$m[1], (int)$op['id']);
+        } catch (RuntimeException $e) {
+            Response::fail('invalid_param', $e->getMessage(), 400);
+        }
+        Response::ok($r);
+
+    case preg_match('#^/api/admin/admins/(\d+)$#', $path, $m) === 1 && $method === 'PUT':
+        if (!ExtensionService::isEnabled('multi-admin')) {
+            Response::fail('not_found', '接口不存在', 404);
+        }
+        $op = AdminAuth::requireOwner();
+        RateLimiter::guard('admin');
+        $body = readJsonBody();
+        try {
+            $r = AdminAccountService::update((int)$m[1], $body, (int)$op['id']);
+        } catch (RuntimeException $e) {
+            Response::fail('invalid_param', $e->getMessage(), 400);
+        }
+        Response::ok($r);
+
+    case preg_match('#^/api/admin/admins/(\d+)$#', $path, $m) === 1 && $method === 'DELETE':
+        if (!ExtensionService::isEnabled('multi-admin')) {
+            Response::fail('not_found', '接口不存在', 404);
+        }
+        $op = AdminAuth::requireOwner();
+        RateLimiter::guard('admin');
+        try {
+            $r = AdminAccountService::delete((int)$m[1], (int)$op['id']);
+        } catch (RuntimeException $e) {
+            Response::fail('invalid_param', $e->getMessage(), 400);
+        }
+        Response::ok($r);
+
     // 已知路径但方法不对 → 405；未知路径 → 404
     case str_starts_with($path, '/api/'):
         $known = [
             '/api/health', '/api/catalog', '/api/products', '/api/categories',
             '/api/orders', '/api/orders/quote', '/api/payment/info', '/api/pay/notify', '/api/pay/return',
-            '/api/site', '/api/theme.css', '/api/install', '/api/install/status',
+            '/api/site', '/api/theme.css', '/api/features', '/api/install', '/api/install/status',
             '/api/admin/extensions', '/api/admin/extensions/upload',
-            '/api/admin/login', '/api/admin/logout', '/api/admin/me', '/api/admin/dashboard',
+            '/api/admin/login', '/api/admin/login/email/send-code', '/api/admin/login/email/verify',
+            '/api/admin/logout', '/api/admin/me', '/api/admin/dashboard',
+            '/api/admin/mail/settings', '/api/admin/mail/test', '/api/admin/admins',
             '/api/admin/products', '/api/admin/categories', '/api/admin/orders',
             '/api/admin/orders/close-expired', '/api/admin/reviews', '/api/admin/password',
             '/api/admin/audit', '/api/admin/settings', '/api/admin/settings/reset',
@@ -1166,6 +1331,7 @@ switch (true) {
             || preg_match('#^/api/admin/users/\d+/(status|reset-password|balance|ledger)$#', $path) === 1
             || preg_match('#^/api/admin/deliveries/\d+$#', $path) === 1
             || preg_match('#^/api/admin/extensions/(theme|plugin)/[a-z0-9-]+(/activate|/toggle)?$#', $path) === 1
+            || preg_match('#^/api/admin/admins/\d+(/status|/reset-password)?$#', $path) === 1
             || preg_match('#^/api/console/orders/[^/]+$#', $path) === 1
             || preg_match('#^/api/console/orders/[^/]+/(pay|pay-balance)$#', $path) === 1;
         if ($isKnown) {

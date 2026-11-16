@@ -237,12 +237,26 @@ CREATE TABLE IF NOT EXISTS admin_users (
   display_name         TEXT NOT NULL DEFAULT '',
   role                 TEXT NOT NULL DEFAULT 'owner' CHECK (role IN ('owner', 'staff')),
   status               TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+  email                TEXT NOT NULL DEFAULT '',
   must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1)),
   created_at           TEXT NOT NULL DEFAULT (datetime('now')),
   last_login_at        TEXT,
   last_login_ip_hash   TEXT NOT NULL DEFAULT '',
   password_changed_at  TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users (email);
+
+-- ---------- 邮箱验证码（smtp-login 功能底座） ----------
+CREATE TABLE IF NOT EXISTS email_codes (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  email       TEXT NOT NULL,
+  code_hash   TEXT NOT NULL,
+  purpose     TEXT NOT NULL DEFAULT 'admin_login',
+  expires_at  INTEGER NOT NULL,
+  attempts    INTEGER NOT NULL DEFAULT 0,
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_email_codes_email ON email_codes (email, purpose, created_at);
 
 -- ---------- 后台会话（只存 token 的 SHA-256） ----------
 CREATE TABLE IF NOT EXISTS admin_sessions (

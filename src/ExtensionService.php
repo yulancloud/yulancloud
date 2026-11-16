@@ -53,6 +53,11 @@ final class ExtensionService
         'apk', 'msi', 'scr', 'com', 'htpasswd',
     ];
 
+    /** 功能插件可声明的 feature 标识白名单（对应核心内置的功能底座） */
+    private const FEATURE_WHITELIST = [
+        'smtp-login', 'login-dark-mode', 'multi-admin',
+    ];
+
     // ---------------------------------------------------------------------
     // 路径
     // ---------------------------------------------------------------------
@@ -194,8 +199,38 @@ final class ExtensionService
             'description'  => (string)($m['description'] ?? ''),
             'enabled'      => (bool)($m['enabled'] ?? false),
             'entry'        => (string)($m['entry'] ?? 'index.html'),
+            'feature'      => (string)($m['feature'] ?? ''),
             'installed_at' => (string)($m['installed_at'] ?? ''),
         ];
+    }
+
+    /**
+     * 功能插件是否处于「已安装且启用」。
+     * 供核心各功能底座判断对应入口是否对站长开放（插件即功能开关）。
+     * 只认 plugin（不是主题），且 enabled 为真。
+     */
+    public static function isEnabled(string $id): bool
+    {
+        $r = self::loadRegistry();
+        return isset($r['plugins'][$id]) && !empty($r['plugins'][$id]['enabled']);
+    }
+
+    /**
+     * 已启用的功能标识集合（取所有已启用插件的 feature 字段）。
+     * 用于下发 /api/features 给前端决定显示哪些菜单 / 登录增强。
+     *
+     * @return string[]
+     */
+    public static function enabledFeatures(): array
+    {
+        $r = self::loadRegistry();
+        $out = [];
+        foreach ($r['plugins'] as $m) {
+            if (!empty($m['enabled']) && !empty($m['feature'])) {
+                $out[] = (string)$m['feature'];
+            }
+        }
+        return array_values(array_unique($out));
     }
 
     /**
@@ -382,6 +417,9 @@ final class ExtensionService
             'description' => self::clip((string)($m['description'] ?? ''), 200),
             'entry'       => self::clip((string)($m['entry'] ?? 'index.html'), 80),
         ];
+        // 功能插件标识：只有白名单内的值才保留，避免插件声明任意功能名
+        $feature = strtolower(trim((string)($m['feature'] ?? '')));
+        $meta['feature'] = in_array($feature, self::FEATURE_WHITELIST, true) ? $feature : '';
         if ($meta['name'] === '') {
             $meta['name'] = $id;
         }

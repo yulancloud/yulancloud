@@ -102,6 +102,39 @@ final class AdminAuth
         ];
     }
 
+    /**
+     * 由「已通过其他方式验证身份」的登录流程派发会话（如邮箱验证码登录）。
+     * 调用方必须先完成身份验证；本方法只负责建会话 + 审计，不再校验密码。
+     * 仅供受信任的核心功能底座调用，插件不能直接触发。
+     *
+     * @return array{ok:bool,message:string,user:array}|null 账号不可用时返回 null
+     */
+    public static function loginById(int $userId, string $auditAction = 'login_email'): ?array
+    {
+        $stmt = Db::conn()->prepare('SELECT id, username, display_name, role, status, must_change_password FROM admin_users WHERE id = ? LIMIT 1');
+        $stmt->execute([$userId]);
+        $u = $stmt->fetch();
+        if (!$u || (string)$u['status'] !== 'active') {
+            return null;
+        }
+        self::issueSession($userId);
+        Db::conn()->prepare(
+            "UPDATE admin_users SET last_login_at = datetime('now'), last_login_ip_hash = ? WHERE id = ?"
+        )->execute([RateLimiter::ipHash(), $userId]);
+        Audit::log($userId, (string)$u['username'], $auditAction, '', '邮箱验证码登录');
+        return [
+            'ok' => true,
+            'message' => 'ok',
+            'user' => [
+                'id'           => (int)$u['id'],
+                'username'     => (string)$u['username'],
+                'display_name' => (string)$u['display_name'],
+                'role'         => (string)$u['role'],
+                'must_change_password' => (int)$u['must_change_password'] === 1,
+            ],
+        ];
+    }
+
     /** 下发会话 Cookie（token 明文只在 Cookie 里，DB 只存哈希） */
     private static function issueSession(int $userId): void
     {

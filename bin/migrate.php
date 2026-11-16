@@ -340,6 +340,18 @@ if (!tableExists($pdo, 'yulan_accounts')) {
     echo "✓ yulan_accounts 表已存在\n";
 }
 
+// ---------- 2.5.1 v1.2.1 功能底座：邮箱验证码 / 多管理员邮箱 ----------
+if (!columnExists($pdo, 'admin_users', 'email')) {
+    $steps[] = 'admin_users 增加列 email（邮箱验证码登录映射）';
+} else {
+    echo "✓ admin_users.email 已存在\n";
+}
+if (!tableExists($pdo, 'email_codes')) {
+    $steps[] = '创建 email_codes 表（邮箱验证码）';
+} else {
+    echo "✓ email_codes 表已存在\n";
+}
+
 // ---------- 2.6 order_deliveries.kind CHECK 扩展 ----------
 if (!deliveriesKindAllowsYulan($pdo)) {
     $steps[] = "order_deliveries.kind 的 CHECK 扩展为支持 'yulan'（重建表，保留数据）";
@@ -447,6 +459,28 @@ SQL
         );
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_yulan_accounts_order  ON yulan_accounts (order_id)');
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_yulan_accounts_product ON yulan_accounts (product_id, account)');
+    }
+
+    // v1.2.1：后台管理员邮箱（邮箱验证码登录映射）
+    if (!columnExists($pdo, 'admin_users', 'email')) {
+        $pdo->exec("ALTER TABLE admin_users ADD COLUMN email TEXT NOT NULL DEFAULT ''");
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users (email)');
+    }
+    // v1.2.1：邮箱验证码表（明文只存哈希，5 分钟有效）
+    if (!tableExists($pdo, 'email_codes')) {
+        $pdo->exec(<<<'SQL'
+CREATE TABLE email_codes (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  email       TEXT NOT NULL,
+  code_hash   TEXT NOT NULL,
+  purpose     TEXT NOT NULL DEFAULT 'admin_login',
+  expires_at  INTEGER NOT NULL,
+  attempts    INTEGER NOT NULL DEFAULT 0,
+  created_at  INTEGER NOT NULL
+)
+SQL
+        );
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_email_codes_email ON email_codes (email, purpose, created_at)');
     }
 
     // order_deliveries.kind CHECK 扩展（旧 v5 表只允许 virtual/physical，写 yulan 发货内容会触发约束失败）

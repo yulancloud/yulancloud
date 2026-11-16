@@ -728,8 +728,25 @@
     });
   });
 
+  // v1.2.1：按已启用的功能插件显示对应菜单（smtp-login / multi-admin）。
+  // features 接口在站点根 /api/features（非 /api/admin），用相对路径兼容子目录部署。
+  function applyFeatureMenus() {
+    fetch(new URL('../api/features', location.href).toString(), { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (resp) { return resp.ok ? resp.json() : {}; })
+      .then(function (j) {
+        var f = (j && j.data) || j || {};
+        var mailLink = document.getElementById('nav-mail-link');
+        var adminsLink = document.getElementById('nav-admins-link');
+        if (mailLink && f.smtp_login) mailLink.hidden = false;
+        // 非店主不显示多账号管理（后端 requireOwner 会再校验一次）
+        if (adminsLink && f.multi_admin && App.me && App.me.role === 'owner') adminsLink.hidden = false;
+      })
+      .catch(function () {});
+  }
+
   API.me().then(function (r) {
     App.me = r.user;
+    applyFeatureMenus();
     document.getElementById('me-name').textContent = r.user.display_name || r.user.username;
     document.getElementById('me-role').textContent = r.user.role === 'owner' ? '店主' : '店员';
     if (r.user.role === 'owner') {
