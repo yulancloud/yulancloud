@@ -2,11 +2,12 @@
 /**
  * 数据库初始化（命令行）
  *
- *   php bin/init_db.php            # 建表 + 灌种子数据（幂等，可重复执行）
+ *   php bin/init_db.php            # 建表（v1.2 起默认「干净安装」：无演示分类/商品，幂等）
  *   php bin/init_db.php --reset    # 删库重建（会清空订单）
+ *   php bin/init_db.php --with-demo # 额外灌入演示分类/商品（想看示例站时用）
  *
  * 与网页安装向导的关系：
- *   - 网页 /install 走 /api/install（同一套 Seeder）
+ *   - 网页 /install 走 /api/install（同一套 Seeder），同样默认干净安装
  *   - 命令行装的站同样会写 config/installed.lock，因此两条路径不会互相打架，
  *     装完之后 /install 一律提示「已安装」并拒绝再次执行。
  */
@@ -21,8 +22,9 @@ require_once dirname(__DIR__) . '/src/Installer.php';
 require_once dirname(__DIR__) . '/database/Seeder.php';
 
 $cfg = require dirname(__DIR__) . '/config/config.php';
-$dbPath = $cfg['db_path'];
-$reset  = in_array('--reset', $argv ?? [], true);
+$dbPath   = $cfg['db_path'];
+$reset    = in_array('--reset', $argv ?? [], true);
+$withDemo = in_array('--with-demo', $argv ?? [], true);
 
 if (!is_dir(dirname($dbPath)) && !mkdir(dirname($dbPath), 0770, true) && !is_dir(dirname($dbPath))) {
     fwrite(STDERR, "无法创建目录 " . dirname($dbPath) . "\n");
@@ -67,8 +69,9 @@ $pdo->exec($schemaV5);
 echo "v5 表结构已就绪（users / user_sessions / balance_ledger / recharge_orders / order_deliveries / product_delivery_fields）\n";
 
 // ---------- 灌数据（委托给 Seeder，与安装向导共用同一实现） ----------
+// v1.2：默认干净安装（不灌演示分类/商品），仅 --with-demo 时灌入示例数据。
 try {
-    Seeder::run($pdo, $isNew || $reset);
+    Seeder::run($pdo, $isNew || $reset, $withDemo);
 } catch (Throwable $e) {
     fwrite(STDERR, "灌数据失败：" . $e->getMessage() . "\n");
     exit(1);

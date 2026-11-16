@@ -163,6 +163,8 @@ return [
         'user_login_acct' => ['window' => 900, 'max' => 8],   // 前台登录（按账号）
         'user_register'   => ['window' => 600, 'max' => 5],   // 前台注册（按 IP）
         'console'         => ['window' => 60,  'max' => 240], // 用户中心读接口
+        'yulan_update'    => ['window' => 600, 'max' => 20],  // 控制台改欲蓝账号名/密码（敏感写操作）
+        'extension_upload'=> ['window' => 600, 'max' => 20],  // v1.2 后台上传主题/插件包（解压类敏感写操作）
         'recharge'        => ['window' => 600, 'max' => 20],  // 发起充值
         'review'          => ['window' => 600, 'max' => 5],   // 前台发表评价（按 IP，防刷）
     ],

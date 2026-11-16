@@ -114,6 +114,7 @@ require_once $SRC . '/Path.php';
 require_once $SRC . '/SettingsService.php';
 require_once $SRC . '/YulanConnector.php';
 require_once $SRC . '/YulanProvision.php';
+require_once $SRC . '/ExtensionService.php';   // v1.2 后台主题 / 插件上传安装
 require_once $SRC . '/Installer.php';
 
 $cfg = require $ROOT . '/config/config.php';
@@ -163,7 +164,8 @@ if ($isInstallRoute && !$isInstallStatus && $installed) {
     Response::fail('already_installed', '站点已完成安装，安装程序已锁定。如需重装请手动删除 config/installed.lock 与数据库文件', 403);
 }
 if (!$installed && !$isInstallRoute
-    && $path !== '/api/health' && $path !== '/api/site' && $path !== '/api/install/status') {
+    && $path !== '/api/health' && $path !== '/api/site'
+    && $path !== '/api/theme.css' && $path !== '/api/install/status') {
     Response::fail('not_installed', '站点尚未安装，请先访问 /install 完成初始化', 503);
 }
 
@@ -182,7 +184,7 @@ switch (true) {
             'installed' => $installed,
             'version' => '5.5',
             // 构建号：升级后用 curl /api/health 看这里即可确认服务器跑的是不是新代码
-            'build' => '20261115a',
+            'build' => '20261116d',
             'php' => PHP_VERSION,
         ]);
 
@@ -196,6 +198,13 @@ switch (true) {
     // 站点设置（前台读取标题/副标题/版权等，后台改完即时生效）
     case $path === '/api/site' && $method === 'GET':
         Response::ok(SettingsService::publicPayload());
+
+    // v1.2 当前主题样式：所有页面在 style.css 之后多引这一行 link。
+    // 内容是后台上传的主题包里的变量覆盖 CSS，没启用主题时返回一段空注释。
+    // 走 PHP 输出而非静态文件，是为了 no-store 让「切换主题 → 刷新即生效」，
+    // 不用像 v1 教程那样手工 bump 全站 ?v= 版本号，也不会被升级覆盖。
+    case $path === '/api/theme.css' && $method === 'GET':
+        Response::css(ExtensionService::activeCss());
 
     // ---------------- 安装向导 ----------------
 
@@ -337,11 +346,14 @@ switch (true) {
             Response::fail('schema_failed', 'v5 建表失败，请检查数据库文件是否可写', 500);
         }
 
-        // 2) 灌种子数据（分类/商品/评价）—— 失败不影响安装，只是站上没有商品
+        // 2) 种子数据 —— v1.2 起默认「干净安装」：只写站点文案块，不灌演示分类/商品。
+        //    店主装完打开后台即可直接添加自己的商品，不用先删示例数据。
+        //    需要示例数据时，安装请求体带 with_demo=true 即可（与 CLI --with-demo 一致）。
         $seeded = false;
         try {
             require_once $ROOT . '/database/Seeder.php';
-            $seeded = Seeder::run(Db::conn());
+            $withDemo = ($body['with_demo'] ?? false) === true || ($body['with_demo'] ?? '') === '1';
+            $seeded = Seeder::run(Db::conn(), true, $withDemo);
         } catch (Throwable $e) {
             error_log('[shop][install] seed failed: ' . $e->getMessage());
         }
@@ -680,6 +692,29 @@ switch (true) {
             Response::fail('password_change_failed', $r['message'], 400);
         }
         Response::ok(['message' => $r['message']]);
+
+    // ================= 控制台 / 我的欲蓝财务魔方商品 =================
+    // 全部强制登录 + 归属校验（ConsoleService 内 JOIN orders 按 user_id 过滤）。
+    // 改号是敏感写操作，单独用更严的限流，防刷。
+
+    // 列表
+    case $path === '/api/console/yulan/accounts' && $method === 'GET':
+        $u = UserAuth::require();
+        RateLimiter::guard('console');
+        Response::ok(ConsoleService::yulanAccounts((int)$u['id']));
+
+    // 详情
+    case preg_match('#^/api/console/yulan/accounts/(\d+)$#', $path, $m) === 1 && $method === 'GET':
+        $u = UserAuth::require();
+        RateLimiter::guard('console');
+        Response::ok(ConsoleService::yulanAccountDetail((int)$u['id'], (int)$m[1]));
+
+    // 修改用户名 / 密码
+    case preg_match('#^/api/console/yulan/accounts/(\d+)/update$#', $path, $m) === 1 && $method === 'POST':
+        $u = UserAuth::require();
+        RateLimiter::guard('yulan_update');
+        $body = readJsonBody();
+        Response::ok(ConsoleService::updateYulanAccount((int)$u['id'], (int)$m[1], $body));
 
     // ================= 后台接口 =================
 
@@ -1020,12 +1055,94 @@ switch (true) {
         Audit::log($op['id'], $op['username'], 'order_ship', $no, (string)($body['ship_no'] ?? ''));
         Response::ok($r);
 
+    // ================= v1.2 后台：主题与插件上传安装 =================
+
+    // 已安装的主题 / 插件列表 + 当前主题 + 上传限制（给后台页面展示）
+    case $path === '/api/admin/extensions' && $method === 'GET':
+        AdminAuth::require();
+        Response::ok(ExtensionService::list());
+
+    // 上传 zip 并安装。multipart/form-data，字段名 package。
+    // ExtensionService 在落盘前完成全部解析与安全校验，失败只回 400，不留半成品。
+    case $path === '/api/admin/extensions/upload' && $method === 'POST':
+        $op = AdminAuth::require();
+        RateLimiter::guard('extension_upload');
+        if (!isset($_FILES['package']) || !is_array($_FILES['package'])) {
+            Response::fail('no_file', '请选择要上传的 .zip 压缩包', 400);
+        }
+        $f   = $_FILES['package'];
+        $err = (int)($f['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($err !== UPLOAD_ERR_OK) {
+            $msg = in_array($err, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)
+                ? '压缩包超过服务器上传大小限制'
+                : '上传失败，请重试（错误码 ' . $err . '）';
+            Response::fail('upload_failed', $msg, 400);
+        }
+        $tmp = (string)($f['tmp_name'] ?? '');
+        if ($tmp === '' || !is_uploaded_file($tmp)) {
+            Response::fail('upload_failed', '上传文件无效，请重试', 400);
+        }
+        try {
+            $r = ExtensionService::install($tmp, (string)($f['name'] ?? ''));
+        } catch (RuntimeException $e) {
+            Response::fail('package_invalid', $e->getMessage(), 400);
+        }
+        Audit::log(
+            $op['id'], $op['username'], 'extension_install',
+            $r['type'] . ':' . $r['id'],
+            $r['name'] . ' v' . $r['version'] . ($r['updated'] ? '（更新）' : '')
+        );
+        Response::json(['ok' => true, 'data' => $r], 201);
+
+    // 把某个主题设为当前（插件无此操作）
+    case preg_match('#^/api/admin/extensions/(theme|plugin)/([a-z0-9-]+)/activate$#', $path, $m) === 1 && $method === 'POST':
+        if ($m[1] !== 'theme') {
+            Response::fail('not_found', '接口不存在', 404);
+        }
+        $op = AdminAuth::require();
+        try {
+            $r = ExtensionService::activateTheme($m[2]);
+        } catch (RuntimeException $e) {
+            Response::fail('not_found', $e->getMessage(), 404);
+        }
+        Audit::log($op['id'], $op['username'], 'extension_activate', 'theme:' . $m[2], '');
+        Response::ok($r);
+
+    // 启用 / 停用。主题启用即设为当前；停用当前主题会回退默认配色。
+    // 插件停用会移走 public/plugins/<id>/ 副本，前台立刻访问不到，原件仍留在 data/ 可再启用。
+    case preg_match('#^/api/admin/extensions/(theme|plugin)/([a-z0-9-]+)/toggle$#', $path, $m) === 1 && $method === 'POST':
+        $op = AdminAuth::require();
+        $body = readJsonBody();
+        $val = $body['enabled'] ?? null;
+        if (!is_bool($val) && !in_array($val, [0, 1, '0', '1'], true)) {
+            Response::fail('invalid_param', 'enabled 必须是 true 或 false', 400);
+        }
+        try {
+            $r = ExtensionService::toggle($m[1], $m[2], (bool)$val);
+        } catch (RuntimeException $e) {
+            Response::fail('not_found', $e->getMessage(), 404);
+        }
+        Audit::log($op['id'], $op['username'], 'extension_toggle', $m[1] . ':' . $m[2], ((bool)$val ? '启用' : '停用'));
+        Response::ok($r);
+
+    // 卸载（删原件 + public 副本 + 清单记录）
+    case preg_match('#^/api/admin/extensions/(theme|plugin)/([a-z0-9-]+)$#', $path, $m) === 1 && $method === 'DELETE':
+        $op = AdminAuth::require();
+        try {
+            $r = ExtensionService::uninstall($m[1], $m[2]);
+        } catch (RuntimeException $e) {
+            Response::fail('not_found', $e->getMessage(), 404);
+        }
+        Audit::log($op['id'], $op['username'], 'extension_uninstall', $m[1] . ':' . $m[2], '');
+        Response::ok($r);
+
     // 已知路径但方法不对 → 405；未知路径 → 404
     case str_starts_with($path, '/api/'):
         $known = [
             '/api/health', '/api/catalog', '/api/products', '/api/categories',
             '/api/orders', '/api/orders/quote', '/api/payment/info', '/api/pay/notify', '/api/pay/return',
-            '/api/site', '/api/install', '/api/install/status',
+            '/api/site', '/api/theme.css', '/api/install', '/api/install/status',
+            '/api/admin/extensions', '/api/admin/extensions/upload',
             '/api/admin/login', '/api/admin/logout', '/api/admin/me', '/api/admin/dashboard',
             '/api/admin/products', '/api/admin/categories', '/api/admin/orders',
             '/api/admin/orders/close-expired', '/api/admin/reviews', '/api/admin/password',
@@ -1048,6 +1165,7 @@ switch (true) {
             || preg_match('#^/api/admin/users/\d+$#', $path) === 1
             || preg_match('#^/api/admin/users/\d+/(status|reset-password|balance|ledger)$#', $path) === 1
             || preg_match('#^/api/admin/deliveries/\d+$#', $path) === 1
+            || preg_match('#^/api/admin/extensions/(theme|plugin)/[a-z0-9-]+(/activate|/toggle)?$#', $path) === 1
             || preg_match('#^/api/console/orders/[^/]+$#', $path) === 1
             || preg_match('#^/api/console/orders/[^/]+/(pay|pay-balance)$#', $path) === 1;
         if ($isKnown) {

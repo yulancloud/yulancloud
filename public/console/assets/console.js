@@ -34,7 +34,9 @@
     orderDetail: null,
     ledger: [],
     recharges: [],
-    rechargeAmount: 10000
+    rechargeAmount: 10000,
+    yulan: [],
+    yulanDetail: null
   };
 
   /* ---------- 工具 ---------- */
@@ -267,6 +269,7 @@
     var tabs = el('div', 'tabs');
     var views = [
       ['orders', '我的订单'],
+      ['yulan', '控制台'],
       ['balance', '余额与充值'],
       ['profile', '账户设置']
     ];
@@ -284,6 +287,7 @@
     app.appendChild(body);
 
     if (state.view === 'orders') renderOrders(body);
+    else if (state.view === 'yulan') renderYulan(body);
     else if (state.view === 'balance') renderBalance(body);
     else renderProfile(body);
   }
@@ -716,6 +720,195 @@
   }
 
   /* =============================================================
+   * 控制台 · 我的欲蓝财务魔方商品
+   *
+   * 数据来自 /api/console/yulan/accounts，服务端已强制按登录用户过滤。
+   * 详情里可修改「登录用户名」和「密码」：网站不存储密码，改密由 Windows
+   * APP 以管理员权限强制重置（无需旧密码）。所有内容一律用 textContent。
+   * ============================================================= */
+  function yulanBadge(role) {
+    return el('span', 'badge badge--' + (role === 'admin' ? 'paid' : 'done'),
+      role === 'admin' ? '管理员账号' : '普通账号');
+  }
+
+  function renderYulan(root) {
+    if (state.yulanDetail) return renderYulanDetail(root);
+
+    var head = el('div', 'sec-title');
+    head.appendChild(el('h2', '', '控制台 · 我的欲蓝财务魔方'));
+    var refresh = el('button', 'btn btn--sm btn--ghost', '刷新');
+    refresh.type = 'button';
+    refresh.onclick = function () { loadYulan().then(function () { renderShell(); }); };
+    head.appendChild(refresh);
+    root.appendChild(head);
+
+    root.appendChild(el('p', 'tiny',
+      '这里列出你已购买并创建成功的欲蓝财务魔方账号。进入「详情」可修改登录用户名与密码；密码不存储，改密由服务器 APP 以管理员权限强制重置。'));
+
+    if (!state.yulan.length) {
+      var e = el('div', 'empty-box');
+      e.appendChild(document.createTextNode('还没有已创建的欲蓝财务魔方商品。'));
+      var a = el('a', '', '去选购 →');
+      a.href = '../index.html#products';
+      e.appendChild(a);
+      root.appendChild(e);
+      return;
+    }
+
+    var list = el('div', 'orders');
+    state.yulan.forEach(function (it) {
+      var card = el('div', 'order');
+      var h = el('div', 'order__head');
+      h.appendChild(el('span', 'order__no', it.product_name || '欲蓝财务魔方'));
+      h.appendChild(el('span', 'order__time', fmtTime(it.created_at)));
+      h.appendChild(el('span', 'order__spacer'));
+      h.appendChild(yulanBadge(it.role));
+      card.appendChild(h);
+
+      var b = el('div', 'order__body');
+      var info = el('div', 'order__items');
+      info.appendChild(el('div', '', '登录用户名：' + it.account));
+      if (it.connection) info.appendChild(el('div', '', '连接地址：' + it.connection));
+      info.appendChild(el('div', '', '订单号：' + it.order_no));
+      b.appendChild(info);
+
+      var acts = el('div', 'order__acts');
+      var detail = el('button', 'btn btn--sm btn--primary', '详情 / 修改');
+      detail.type = 'button';
+      detail.onclick = function () { openYulan(it.id); };
+      acts.appendChild(detail);
+      b.appendChild(acts);
+      card.appendChild(b);
+      list.appendChild(card);
+    });
+    root.appendChild(list);
+  }
+
+  function openYulan(id) {
+    request('GET', '/console/yulan/accounts/' + id).then(function (d) {
+      state.yulanDetail = d.item;
+      renderShell();
+    }).catch(function (e) { toast(e.message, true); });
+  }
+
+  function renderYulanDetail(root) {
+    var it = state.yulanDetail;
+
+    var head = el('div', 'sec-title');
+    var back = el('button', 'btn btn--sm btn--ghost', '← 返回控制台');
+    back.type = 'button';
+    back.onclick = function () { state.yulanDetail = null; renderShell(); };
+    head.appendChild(back);
+    head.appendChild(yulanBadge(it.role));
+    root.appendChild(head);
+
+    // 基本信息
+    var c1 = el('div', 'detail-card');
+    c1.appendChild(el('h3', '', '商品信息'));
+    var kv = el('dl', 'kv');
+    function row(k, v) {
+      kv.appendChild(el('dt', '', k));
+      kv.appendChild(el('dd', '', v));
+    }
+    row('商品', it.product_name || '欲蓝财务魔方');
+    row('订单号', it.order_no);
+    row('登录用户名', it.account);
+    row('账号类型', it.role === 'admin' ? '管理员' : '普通用户');
+    row('连接地址', it.connection || '（未配置，请咨询客服）');
+    row('登录密码', '平台不存储，无法查看；可随时在下方重设');
+    row('创建时间', fmtTime(it.created_at));
+    if (it.updated_at) row('最近修改', fmtTime(it.updated_at));
+    c1.appendChild(kv);
+    root.appendChild(c1);
+
+    // 修改用户名 / 密码
+    var c2 = el('div', 'detail-card');
+    c2.appendChild(el('h3', '', '修改登录用户名 / 密码'));
+    c2.appendChild(el('p', 'tiny',
+      '两项至少填一项，留空表示不修改。改用户名后请用新用户名登录远程桌面；改密码后请用新密码登录（原来的密码立即失效）。'));
+
+    var form = el('form', 'auth__form');
+    form.style.maxWidth = '420px';
+
+    var gAcc = el('div');
+    gAcc.appendChild(el('label', 'auth__label', '新用户名（留空不改）'));
+    var iAcc = el('input', 'field');
+    iAcc.type = 'text'; iAcc.placeholder = '1-20 位字母、数字、点、下划线、连字符';
+    iAcc.autocomplete = 'off'; iAcc.maxLength = 20;
+    gAcc.appendChild(iAcc);
+    form.appendChild(gAcc);
+
+    var gPw = el('div');
+    gPw.appendChild(el('label', 'auth__label', '新密码（留空不改，至少 6 位）'));
+    var iPw = el('input', 'field');
+    iPw.type = 'password'; iPw.placeholder = '至少 6 位';
+    iPw.autocomplete = 'new-password';
+    gPw.appendChild(iPw);
+    form.appendChild(gPw);
+
+    var gPw2 = el('div');
+    gPw2.appendChild(el('label', 'auth__label', '确认新密码'));
+    var iPw2 = el('input', 'field');
+    iPw2.type = 'password'; iPw2.placeholder = '再输入一次新密码';
+    iPw2.autocomplete = 'new-password';
+    gPw2.appendChild(iPw2);
+    form.appendChild(gPw2);
+
+    var errBox = el('div', 'auth__err');
+    errBox.hidden = true;
+    form.appendChild(errBox);
+
+    var save = el('button', 'btn btn--primary', '保存修改');
+    save.type = 'submit';
+    form.appendChild(save);
+
+    form.onsubmit = function (ev) {
+      ev.preventDefault();
+      errBox.hidden = true;
+      var na = iAcc.value.trim();
+      var np = iPw.value;
+      var np2 = iPw2.value;
+      if (na === '' && np === '') {
+        errBox.textContent = '请至少填写新用户名或新密码';
+        errBox.hidden = false; return;
+      }
+      if (np !== '' && np !== np2) {
+        errBox.textContent = '两次输入的新密码不一致';
+        errBox.hidden = false; return;
+      }
+      if (np !== '' && np.length < 6) {
+        errBox.textContent = '新密码至少 6 位';
+        errBox.hidden = false; return;
+      }
+      var payload = {};
+      if (na !== '') payload.new_account = na;
+      if (np !== '') payload.new_password = np;
+      if (!confirm('确认修改该欲蓝账号？\n' +
+        (na !== '' ? '新用户名：' + na + '\n' : '') +
+        (np !== '' ? '密码：将强制重置为新密码\n' : '') +
+        '\n修改后请用新信息登录远程桌面。')) return;
+
+      save.disabled = true;
+      save.textContent = '提交中…';
+      request('POST', '/console/yulan/accounts/' + it.id + '/update', payload)
+        .then(function (d) {
+          toast(d.message || '修改成功');
+          state.yulanDetail = d.item;
+          return loadYulan();
+        })
+        .then(function () { renderShell(); })
+        .catch(function (e) {
+          errBox.textContent = e.message;
+          errBox.hidden = false;
+          save.disabled = false;
+          save.textContent = '保存修改';
+        });
+    };
+    c2.appendChild(form);
+    root.appendChild(c2);
+  }
+
+  /* =============================================================
    * 数据加载
    * ============================================================= */
   function loadOrders() {
@@ -733,6 +926,11 @@
       state.recharges = d.items || [];
     });
   }
+  function loadYulan() {
+    return request('GET', '/console/yulan/accounts').then(function (d) {
+      state.yulan = d.items || [];
+    }).catch(function () { state.yulan = state.yulan || []; });
+  }
 
   function refreshAll() {
     return request('GET', '/console/overview').then(function (d) {
@@ -740,7 +938,7 @@
       state.stats = d.stats;
       state.payment = d.payment || state.payment;
       updateHead();
-      return Promise.all([loadOrders(), loadLedger(), loadRecharges()]);
+      return Promise.all([loadOrders(), loadLedger(), loadRecharges(), loadYulan()]);
     });
   }
 
@@ -761,7 +959,7 @@
    * ============================================================= */
   function parseHash() {
     var h = (location.hash || '').replace(/^#\/?/, '');
-    if (['orders', 'balance', 'profile'].indexOf(h) >= 0) return h;
+    if (['orders', 'yulan', 'balance', 'profile'].indexOf(h) >= 0) return h;
     return 'orders';
   }
 
@@ -804,9 +1002,11 @@
     if (!state.user) return;
     state.view = parseHash();
     state.orderDetail = null;
+    state.yulanDetail = null;
     // 切换视图时重新拉取数据，避免看到过期列表
     var jobs = [];
     if (state.view === 'orders') jobs.push(loadOrders());
+    if (state.view === 'yulan') jobs.push(loadYulan());
     if (state.view === 'balance') { jobs.push(loadLedger(), loadRecharges()); }
     Promise.all(jobs).then(function () {
       renderShell();

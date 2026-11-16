@@ -59,8 +59,14 @@
       cache: 'no-store'
     };
     if (body !== undefined && body !== null) {
-      init.headers['Content-Type'] = 'application/json';
-      init.body = JSON.stringify(body);
+      // v1.2 上传主题/插件包用 FormData：不能手写 Content-Type，
+      // 必须让浏览器自动补 multipart/form-data; boundary=...，否则服务端收不到 $_FILES。
+      if (typeof FormData !== 'undefined' && body instanceof FormData) {
+        init.body = body;
+      } else {
+        init.headers['Content-Type'] = 'application/json';
+        init.body = JSON.stringify(body);
+      }
     }
 
     return fetch(BASE + path, init).then(function (res) {
@@ -167,6 +173,22 @@
 
     /* ---- 审计 ---- */
     audit: function (q) { return request('GET', '/audit' + qs(q)); },
+
+    /* ---- v1.2 主题与插件（后台上传安装） ---- */
+    extensions: function () { return request('GET', '/extensions'); },
+    uploadExtension: function (formData) {
+      return request('POST', '/extensions/upload', formData, { timeout: 60000 });
+    },
+    toggleExtension: function (type, id, enabled) {
+      return request('POST', '/extensions/' + type + '/' + encodeURIComponent(id) + '/toggle',
+                     { enabled: enabled });
+    },
+    activateTheme: function (id) {
+      return request('POST', '/extensions/theme/' + encodeURIComponent(id) + '/activate', {});
+    },
+    deleteExtension: function (type, id) {
+      return request('DELETE', '/extensions/' + type + '/' + encodeURIComponent(id));
+    },
 
     /* ---- v5：用户 / 余额 ---- */
     users: function (q) { return request('GET', '/users' + qs(q)); },

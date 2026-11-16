@@ -52,6 +52,35 @@ final class Response
         exit;
     }
 
+    /**
+     * 输出 CSS 响应（v1.2 当前主题样式：GET /api/theme.css）
+     *
+     * 与 plain() 一样必须标记 SHOP_API_SENT，否则 api/index.php 的 shutdown 守卫
+     * 会把这段 CSS 当成「脏输出」转成 JSON 500，浏览器拿到非 CSS 内容就整站丢样式。
+     * 用 no-store：主题切换后刷新即刻生效，不受 ?v= 版本号和 CDN 缓存影响。
+     */
+    public static function css(string $body, int $status = 200): never
+    {
+        while (ob_get_level() > 0) {
+            @ob_end_clean();
+        }
+        if (!defined('SHOP_API_SENT')) {
+            define('SHOP_API_SENT', true);
+        }
+        if (!headers_sent()) {
+            http_response_code($status);
+            header('Content-Type: text/css; charset=utf-8');
+            header('X-Content-Type-Options: nosniff');
+            header('X-Frame-Options: DENY');
+            header('Referrer-Policy: no-referrer');
+            header('Cache-Control: no-store, no-cache, must-revalidate');
+            header('Pragma: no-cache');
+            header('Cross-Origin-Resource-Policy: same-origin');
+        }
+        echo $body;
+        exit;
+    }
+
     public static function json(array $payload, int $status = 200): never
     {
         // 【v5.5】输出前清空所有缓冲：任何被 PHP 警告/notice/上游 echo 污染的脏输出

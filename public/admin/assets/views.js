@@ -1161,6 +1161,202 @@
     }
   };
 
+  /* =============================================================
+   * 6c. v1.2 主题与插件（后台上传 zip 安装，零侵入）
+   *
+   * 与 v1 教程的区别：不用改 style.css、不用改亮暗两套变量、不用 bump ?v=、
+   * 不用手工复制文件、升级覆盖 Release 也不会丢。传一个 zip 就装好。
+   * ============================================================= */
+  var extensions = {
+    title: '主题与插件',
+    render: function (host) {
+      host.innerHTML =
+        '<div class="notice">上传一个 <b>.zip</b> 包即可安装主题或插件，装完刷新前台就生效。' +
+          '主题只覆盖配色变量，插件只往 <code>public/plugins/</code> 放静态页面，' +
+          '<b>不改任何核心文件、不建表、不用跑迁移</b>，卸载即可完全还原。</div>' +
+
+        '<div class="panel-card">' +
+          '<div class="panel-card__head"><b>上传扩展包</b></div>' +
+          '<div class="panel-card__body">' +
+            '<div class="fld">' +
+              '<label for="ext-file">选择 .zip 包</label>' +
+              '<input class="field" id="ext-file" type="file" accept=".zip,application/zip">' +
+              '<div class="hint" id="ext-limits">单个包上限 2 MB，只放行静态资源。</div>' +
+            '</div>' +
+            '<div class="toolbar">' +
+              '<button class="btn btn--sm btn--primary" id="ext-upload">上传并安装</button>' +
+              '<span class="topbar__hint" id="ext-msg"></span>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="sec-title">已装主题</div>' +
+        '<div class="panel-card"><div id="ext-themes">' + loadingBox() + '</div></div>' +
+
+        '<div class="sec-title">已装插件</div>' +
+        '<div class="panel-card"><div id="ext-plugins">' + loadingBox() + '</div></div>' +
+
+        '<div class="notice notice--warn" style="margin-top:14px">' +
+          '<b>包里要有什么？</b><br>' +
+          '· <code>plugin.json</code>：写明 <code>id</code>（小写英文+连字符）、<code>name</code>、' +
+          '<code>version</code>、<code>type</code>（<code>theme</code> 或 <code>plugin</code>）<br>' +
+          '· 主题包再放一个 <code>theme.css</code>，只写 <code>:root{}</code> 和 ' +
+          '<code>:root[data-theme=dark]{}</code> 的变量覆盖（写 <code>[data-theme=dark]{}</code> 也行，服务端会自动提升选择器）<br>' +
+          '· 插件包再放一个 <code>files/</code> 目录，里面是要装到 <code>/plugins/&lt;id&gt;/</code> 的静态页面<br>' +
+          '· 服务端会拒绝含 PHP / 脚本 / 配置文件、路径穿越、超大或加密的包；' +
+          '同一 id 再上传视为覆盖更新。' +
+        '</div>' +
+        '<div class="notice" style="margin-top:10px">' +
+          '想找现成的包？去 <a href="https://yulancloud.us.ci/market/" target="_blank" rel="noopener">插件市场</a>；' +
+          '怎么自己做包看文档站「v2 主题与插件制作教程」。' +
+        '</div>';
+
+      var fileInput = document.getElementById('ext-file');
+      var upBtn     = document.getElementById('ext-upload');
+      var msgEl     = document.getElementById('ext-msg');
+      var themesBox = document.getElementById('ext-themes');
+      var pluginBox = document.getElementById('ext-plugins');
+
+      function esc(s) { return U.esc(s == null ? '' : String(s)); }
+
+      function rowHtml(x, type) {
+        var active = !!x.active;
+        var state = type === 'theme'
+          ? (active ? '<span class="badge badge--ok">当前主题</span>'
+                    : (x.enabled ? '<span class="badge badge--accent">已启用</span>'
+                                 : '<span class="badge">已停用</span>'))
+          : (x.enabled ? '<span class="badge badge--ok">已启用</span>'
+                       : '<span class="badge">已停用</span>');
+        var acts = '';
+        if (type === 'theme' && !active && x.enabled) {
+          acts += '<button class="btn btn--sm btn--ghost" data-ext-act="activate" data-ext-type="theme"' +
+                  ' data-ext-id="' + esc(x.id) + '" data-ext-name="' + esc(x.name) + '">设为当前</button> ';
+        }
+        if (type === 'plugin' && x.enabled && x.deployed) {
+          acts += '<button class="btn btn--sm btn--ghost" data-ext-act="visit"' +
+                  ' data-ext-url="' + esc(x.url + (x.entry || 'index.html')) + '">访问</button> ';
+        }
+        acts += '<button class="btn btn--sm btn--ghost" data-ext-act="toggle" data-ext-type="' + type + '"' +
+                ' data-ext-id="' + esc(x.id) + '" data-ext-name="' + esc(x.name) + '"' +
+                ' data-ext-enabled="' + (x.enabled ? '0' : '1') + '">' +
+                (x.enabled ? '停用' : '启用') + '</button> ';
+        acts += '<button class="btn btn--sm btn--ghost" data-ext-act="remove" data-ext-type="' + type + '"' +
+                ' data-ext-id="' + esc(x.id) + '" data-ext-name="' + esc(x.name) + '">卸载</button>';
+
+        return '<tr>' +
+          '<td><div class="tbl__name">' + esc(x.name) + '</div>' +
+            '<div class="tbl__sub">' + esc(x.id) + (x.version ? ' · v' + esc(x.version) : '') + '</div>' +
+            (x.description ? '<div class="tbl__sub">' + esc(x.description) + '</div>' : '') + '</td>' +
+          '<td>' + esc(x.author || '—') + '</td>' +
+          '<td>' + state + '</td>' +
+          '<td class="tbl__actions">' + acts + '</td>' +
+        '</tr>';
+      }
+
+      function tableHtml(items, type, emptyText) {
+        var rows = (items || []).map(function (x) { return rowHtml(x, type); }).join('');
+        if (!rows) { return stateBox(emptyText); }
+        return '<div class="tbl-wrap"><table class="tbl"><thead><tr>' +
+          '<th>扩展</th><th>作者</th><th>状态</th><th style="text-align:right">操作</th>' +
+          '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+      }
+
+      function reload() {
+        return API.extensions().then(function (d) {
+          themesBox.innerHTML = tableHtml(d.themes, 'theme', '还没有主题，上传一个主题包试试');
+          pluginBox.innerHTML = tableHtml(d.plugins, 'plugin', '还没有插件，上传一个插件包试试');
+          if (d.limits) {
+            document.getElementById('ext-limits').textContent =
+              '单个包上限 ' + d.limits.max_zip_mb + ' MB · 最多 ' + d.limits.max_entries +
+              ' 个文件 · 单文件 ' + d.limits.max_file_kb + ' KB · 只放行静态资源';
+          }
+        }).catch(function (err) {
+          themesBox.innerHTML = stateBox('加载失败', err.message);
+          pluginBox.innerHTML = stateBox('加载失败', err.message);
+        });
+      }
+
+      upBtn.addEventListener('click', function () {
+        var f = fileInput.files && fileInput.files[0];
+        if (!f) { U.toast('请先选择 .zip 包', 'error'); return; }
+        if (!/\.zip$/i.test(f.name)) { U.toast('只接受 .zip 压缩包', 'error'); return; }
+        var fd = new FormData();
+        fd.append('package', f);
+        upBtn.disabled = true;
+        msgEl.textContent = '正在上传并安装…';
+        API.uploadExtension(fd).then(function (r) {
+          var kind = r.type === 'theme' ? '主题' : '插件';
+          U.toast(kind + '「' + r.name + '」已安装');
+          msgEl.textContent = '已安装 ' + kind + ' ' + r.name + ' v' + (r.version || '') +
+                              (r.updated ? '（覆盖更新）' : '') +
+                              (r.type === 'theme' ? '，已设为当前主题' : '');
+          fileInput.value = '';
+          upBtn.disabled = false;
+          reload();
+        }).catch(function (err) {
+          U.toast(err.message, 'error');
+          msgEl.textContent = '安装失败：' + err.message;
+          upBtn.disabled = false;
+        });
+      });
+
+      // 用 onclick 覆盖而不是 addEventListener：同一个 #view 节点会被多个视图复用，
+      // 累加监听器会导致切换菜单回来后点一次触发多次。
+      host.onclick = function (e) {
+        var b = e.target.closest ? e.target.closest('[data-ext-act]') : null;
+        if (!b) return;
+        var act  = b.getAttribute('data-ext-act');
+        var type = b.getAttribute('data-ext-type');
+        var id   = b.getAttribute('data-ext-id');
+        var name = b.getAttribute('data-ext-name') || id;
+
+        if (act === 'visit') {
+          window.open('../' + b.getAttribute('data-ext-url'), '_blank', 'noopener,noreferrer');
+          return;
+        }
+        if (act === 'remove') {
+          if (!U.confirm('确定卸载「' + name + '」？\n\n会删除这个扩展的所有文件，之后可以重新上传安装。')) return;
+          b.disabled = true;
+          API.deleteExtension(type, id).then(function () {
+            U.toast('已卸载 ' + name);
+            msgEl.textContent = '已卸载 ' + name;
+            reload();
+          }).catch(function (err) {
+            U.toast(err.message, 'error');
+            b.disabled = false;
+          });
+          return;
+        }
+        if (act === 'activate') {
+          b.disabled = true;
+          API.activateTheme(id).then(function () {
+            U.toast('已切换当前主题为 ' + name + '，刷新前台即可看到');
+            msgEl.textContent = '当前主题：' + name;
+            reload();
+          }).catch(function (err) {
+            U.toast(err.message, 'error');
+            b.disabled = false;
+          });
+          return;
+        }
+        if (act === 'toggle') {
+          var next = b.getAttribute('data-ext-enabled') === '1';
+          b.disabled = true;
+          API.toggleExtension(type, id, next).then(function () {
+            U.toast((next ? '已启用 ' : '已停用 ') + name);
+            msgEl.textContent = (next ? '已启用 ' : '已停用 ') + name;
+            reload();
+          }).catch(function (err) {
+            U.toast(err.message, 'error');
+            b.disabled = false;
+          });
+        }
+      };
+
+      reload();
+    }
+  };
+
   window.AdminViews = {
     dashboard: dashboard,
     products: products,
@@ -1185,6 +1381,7 @@
     virtual: virtualDeliverySettings,
     yulan: yulan,
     epay: epaySettings,
+    extensions: extensions,
     settings: settings,
     audit: audit
   };

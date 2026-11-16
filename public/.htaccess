@@ -59,6 +59,12 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^console/.*$ console/index.html [L]
 
+    # ---------- v1.2 插件目录：文件不存在就明确 404，不回首页 ----------
+    # 否则停用 / 卸载插件后访问旧的 /plugins/<id>/ 会看到商城首页，容易误以为插件还在。
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^plugins/ - [R=404,L]
+
     # ---------- 页面：不存在的路径回首页 ----------
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d

@@ -53,6 +53,32 @@ if (preg_match($denyExt, $uri) === 1
 $rel  = $uri;
 $file = __DIR__ . $rel;
 
+// ---------------------------------------------------------------------------
+// v1.2 插件目录：文件不存在时明确 404，不落到「回首页」兜底。
+// 否则停用 / 卸载插件后访问旧的 /plugins/<id>/ 会看到商城首页，容易误以为插件还在。
+// 用原始 URI 里的 /plugins/ 段判断，兼容子目录部署（此时 $rel 还没剥掉前缀）。
+// ---------------------------------------------------------------------------
+if (preg_match('#/plugins/(.+)$#', $uri, $pm) === 1) {
+    $sub = $pm[1];
+    if (strpos($sub, "\0") !== false || preg_match('#(^|/)\.\.(/|$)#', $sub) === 1) {
+        http_response_code(400);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Bad Request';
+        return true;
+    }
+    $candidate = __DIR__ . '/plugins/' . $sub;
+    if (is_dir($candidate)) {
+        $candidate = rtrim($candidate, '/') . '/index.html';
+    }
+    if (!is_file($candidate)) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        header('X-Content-Type-Options: nosniff');
+        echo 'Not Found';
+        return true;
+    }
+}
+
 if (!is_file($file) && !is_dir($file)) {
     $parts = array_values(array_filter(explode('/', trim($uri, '/')), function ($s) {
         return $s !== '';
