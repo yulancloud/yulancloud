@@ -53,11 +53,6 @@ final class ExtensionService
         'apk', 'msi', 'scr', 'com', 'htpasswd',
     ];
 
-    /** 功能插件可声明的 feature 标识白名单（对应核心内置的功能底座） */
-    private const FEATURE_WHITELIST = [
-        'smtp-login', 'login-dark-mode', 'multi-admin',
-    ];
-
     // ---------------------------------------------------------------------
     // 路径
     // ---------------------------------------------------------------------
@@ -199,38 +194,19 @@ final class ExtensionService
             'description'  => (string)($m['description'] ?? ''),
             'enabled'      => (bool)($m['enabled'] ?? false),
             'entry'        => (string)($m['entry'] ?? 'index.html'),
-            'feature'      => (string)($m['feature'] ?? ''),
+            'runtime'      => !empty($m['runtime']),
             'installed_at' => (string)($m['installed_at'] ?? ''),
         ];
     }
 
     /**
-     * 功能插件是否处于「已安装且启用」。
-     * 供核心各功能底座判断对应入口是否对站长开放（插件即功能开关）。
-     * 只认 plugin（不是主题），且 enabled 为真。
+     * 插件是否处于「已安装且启用」。v1.2.2 仅用于扩展管理自身展示，
+     * 功能开关一律由 PluginRuntime 判断，主程序不再认识任何具体功能。
      */
     public static function isEnabled(string $id): bool
     {
         $r = self::loadRegistry();
         return isset($r['plugins'][$id]) && !empty($r['plugins'][$id]['enabled']);
-    }
-
-    /**
-     * 已启用的功能标识集合（取所有已启用插件的 feature 字段）。
-     * 用于下发 /api/features 给前端决定显示哪些菜单 / 登录增强。
-     *
-     * @return string[]
-     */
-    public static function enabledFeatures(): array
-    {
-        $r = self::loadRegistry();
-        $out = [];
-        foreach ($r['plugins'] as $m) {
-            if (!empty($m['enabled']) && !empty($m['feature'])) {
-                $out[] = (string)$m['feature'];
-            }
-        }
-        return array_values(array_unique($out));
     }
 
     /**
@@ -279,7 +255,7 @@ final class ExtensionService
 
         // 1) 先完整解析 + 校验，任何一步失败都不碰磁盘
         $entries = self::readZip($tmpFile);
-        [$meta, $css, $assets] = self::parsePackage($entries);
+        [$meta, $css, $assets, $code] = self::parsePackage($entries);
         $id   = $meta['id'];
         $type = $meta['type'];
 
@@ -302,6 +278,13 @@ final class ExtensionService
             $dir = self::pluginDir($id) . '/files';
             foreach ($assets as $rel => $content) {
                 self::writeAsset($dir, $rel, $content);
+            }
+            // runtime 服务端代码存 data/extensions/plugins/<id>/code/（Web 不可直接访问）
+            if ($code !== []) {
+                $codeDir = self::pluginDir($id) . '/code';
+                foreach ($code as $rel => $content) {
+                    self::writeAsset($codeDir, $rel, $content);
+                }
             }
             self::syncPublic($id, true);
         }
@@ -378,7 +361,7 @@ final class ExtensionService
     // 包解析
     // ---------------------------------------------------------------------
 
-    /** @return array{meta:array, css:string, assets:array<string,string>} */
+    /** @return array{meta:array, css:string, assets:array<string,string>, code:array<string,string>} */
     private static function parsePackage(array $entries): array
     {
         // 找 plugin.json（允许包一层顶层目录）
@@ -417,9 +400,9 @@ final class ExtensionService
             'description' => self::clip((string)($m['description'] ?? ''), 200),
             'entry'       => self::clip((string)($m['entry'] ?? 'index.html'), 80),
         ];
-        // 功能插件标识：只有白名单内的值才保留，避免插件声明任意功能名
-        $feature = strtolower(trim((string)($m['feature'] ?? '')));
-        $meta['feature'] = in_array($feature, self::FEATURE_WHITELIST, true) ? $feature : '';
+        // v1.2.2：runtime 插件自带 code/ 服务端代码。feature 底座已废弃，保留字段仅为兼容旧清单展示。
+        $meta['runtime'] = !empty($m['runtime']);
+        $meta['feature'] = '';
         if ($meta['name'] === '') {
             $meta['name'] = $id;
         }
@@ -438,7 +421,39 @@ final class ExtensionService
             if (!isset($entries[$cssKey])) {
                 throw new RuntimeException('主题包里找不到 theme.css');
             }
-            return [$meta, self::sanitizeCss($entries[$cssKey]), []];
+            return [$meta, self::sanitizeCss($entries[$cssKey]), [], []];
+        }
+
+        // v1.2.2 runtime 插件：收集 code/ 下的服务端代码与前端资源（存 data/，不进 public/）
+        $code = [];
+        $codePrefix = $base . 'code/';
+        foreach ($entries as $n => $content) {
+            if (!str_starts_with($n, $codePrefix)) {
+                continue;
+            }
+            $rel = substr($n, strlen($codePrefix));
+            if ($rel === '' || str_ends_with($rel, '/')) {
+                continue;
+            }
+            $rel = self::safeRelPath($rel);
+            if ($rel === null) {
+                throw new RuntimeException('插件代码包含非法路径，已拒绝安装');
+            }
+            $ext = strtolower(pathinfo($rel, PATHINFO_EXTENSION));
+            if (!in_array($ext, ['php', 'js', 'mjs', 'css', 'json', 'md', 'txt'], true)) {
+                throw new RuntimeException('插件代码文件类型不允许：' . $rel);
+            }
+            if (strlen($content) > self::MAX_FILE_BYTES) {
+                throw new RuntimeException('插件代码单文件超过 512 KB 上限');
+            }
+            $code[$rel] = $content;
+        }
+        // 声明了 runtime 必须有入口；出现 code/ 但未声明 runtime 也要拒绝（避免藏代码）
+        if ($meta['runtime'] && !isset($code['plugin.php'])) {
+            throw new RuntimeException('runtime 插件缺少 code/plugin.php 入口');
+        }
+        if (!$meta['runtime'] && $code !== []) {
+            throw new RuntimeException('插件包含 code/ 目录但未声明 runtime，已拒绝安装');
         }
 
         // 插件：收集 files/ 下的静态资源
@@ -471,10 +486,10 @@ final class ExtensionService
             }
             $assets[$rel] = $content;
         }
-        if ($assets === []) {
+        if ($assets === [] && !$meta['runtime']) {
             throw new RuntimeException('插件包里 files/ 目录为空，没有可安装的文件');
         }
-        return [$meta, '', $assets];
+        return [$meta, '', $assets, $code];
     }
 
     /** 只允许「字母数字._-/」构成的相对路径，且每段不能是 . / .. / 空 / 隐藏文件 */
@@ -649,7 +664,12 @@ final class ExtensionService
             // 避免有人把 .php 藏在 .README/ 之类的角落绕过扫描。
             $rawName = str_replace('\\', '/', $name);
             $rawExt  = strtolower(pathinfo($rawName, PATHINFO_EXTENSION));
-            if (in_array($rawExt, self::DANGEROUS_EXT, true)) {
+            // v1.2.2 runtime 插件：仅允许 code/ 目录内出现 .php（服务端代码，存 data/ 不进 public/）。
+            // 其余危险后缀一律拒绝；code/ 外的 .php 同样拒绝。parsePackage 会再校验 runtime 声明。
+            $inCodeDir = preg_match('#(^|/)code/[^/]+$#', $rawName) === 1;
+            if ($rawExt === 'php' && $inCodeDir) {
+                // 放行，交给 parsePackage 判定是否声明了 runtime
+            } elseif (in_array($rawExt, self::DANGEROUS_EXT, true)) {
                 throw new RuntimeException('包内含有不允许的文件类型（.' . $rawExt . '），已拒绝安装');
             }
             $name = self::normalizeZipName($name);

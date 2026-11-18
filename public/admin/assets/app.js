@@ -91,9 +91,12 @@
   }
 
   App.go = go;
+  window.AdminApp = App;   // 供插件调用 go / openDrawer 等
 
-  document.querySelectorAll('.side__link[data-view]').forEach(function (b) {
-    b.addEventListener('click', function () { go(b.getAttribute('data-view')); });
+  // v1.2.2 事件委托：插件注入的侧栏按钮（后加载）也能响应点击
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('.side__link[data-view]');
+    if (b) { go(b.getAttribute('data-view')); }
   });
 
   window.addEventListener('hashchange', function () {
@@ -728,25 +731,30 @@
     });
   });
 
-  // v1.2.1：按已启用的功能插件显示对应菜单（smtp-login / multi-admin）。
-  // features 接口在站点根 /api/features（非 /api/admin），用相对路径兼容子目录部署。
-  function applyFeatureMenus() {
+  // v1.2.2 通用插件资源加载器：注入已启用插件的 admin 资源（脚本注册菜单与视图）
+  function loadPluginAssets() {
     fetch(new URL('../api/features', location.href).toString(), { credentials: 'same-origin', cache: 'no-store' })
       .then(function (resp) { return resp.ok ? resp.json() : {}; })
       .then(function (j) {
-        var f = (j && j.data) || j || {};
-        var mailLink = document.getElementById('nav-mail-link');
-        var adminsLink = document.getElementById('nav-admins-link');
-        if (mailLink && f.smtp_login) mailLink.hidden = false;
-        // 非店主不显示多账号管理（后端 requireOwner 会再校验一次）
-        if (adminsLink && f.multi_admin && App.me && App.me.role === 'owner') adminsLink.hidden = false;
+        var d = (j && j.data) || j || {};
+        var list = (d.assets && d.assets.admin) || [];
+        list.forEach(function (rel) {
+          var url = new URL(rel, location.href).toString();
+          if (/\.css(\?|$)/.test(rel)) {
+            var link = document.createElement('link');
+            link.rel = 'stylesheet'; link.href = url; document.head.appendChild(link);
+          } else {
+            var s = document.createElement('script');
+            s.src = url; document.body.appendChild(s);
+          }
+        });
       })
       .catch(function () {});
   }
 
   API.me().then(function (r) {
     App.me = r.user;
-    applyFeatureMenus();
+    loadPluginAssets();
     document.getElementById('me-name').textContent = r.user.display_name || r.user.username;
     document.getElementById('me-role').textContent = r.user.role === 'owner' ? '店主' : '店员';
     if (r.user.role === 'owner') {

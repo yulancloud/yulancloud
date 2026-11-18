@@ -6,27 +6,14 @@
 <meta name="robots" content="noindex, nofollow">
 <title>后台登录 — 拾物集</title>
 <meta name="theme-color" content="#f5f6f8">
-<link rel="stylesheet" href="../assets/style.css?v=20261116e">
+<link rel="stylesheet" href="../assets/style.css?v=20261118a">
 <link rel="stylesheet" href="../api/theme.css">
-<link rel="stylesheet" href="assets/admin.css?v=20261116e">
-<style>
-  /* v1.2.1 登录增强（登录页深色切换 + 邮箱验证码登录）——插件前端，注入式样式 */
-  .login-wrap { position: relative; }
-  .login-theme-toggle { position: absolute; top: 20px; right: 20px; z-index: 2; }
-  .login-tabs { display: flex; gap: 6px; margin: 4px 0 18px; border-bottom: 1px solid var(--hair); }
-  .login-tab { appearance: none; background: none; border: none; border-bottom: 2px solid transparent;
-    padding: 8px 4px; margin-bottom: -1px; font: inherit; font-size: 13px; color: var(--ink-3); cursor: pointer; }
-  .login-tab.is-on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
-  .login-code-row { display: flex; gap: 8px; }
-  .login-code-row .field { flex: 1; min-width: 0; }
-  .login-code-row .btn { flex: 0 0 auto; white-space: nowrap; padding: 0 14px; }
-</style>
+<link rel="stylesheet" href="assets/admin.css?v=20261118a">
+<!-- v1.2.2 插件注入的样式（如登录页深色模式）由下方通用加载器插入 -->
 </head>
 <body>
 
 <div class="login-wrap">
-  <button class="icon-btn login-theme-toggle" data-theme-toggle type="button" id="login-theme-toggle"
-          aria-label="切换深色模式" title="切换深色模式" hidden></button>
   <div class="login-card">
     <div class="login-card__brand">
       <span class="brand__mark">拾物集</span>
@@ -37,30 +24,8 @@
     <h1>登录管理后台</h1>
     <p class="lede">管理商品、分类、订单与评价。</p>
 
-    <!-- 邮箱验证码登录（smtp-login 插件启用时显示） -->
-    <div class="login-email-box" id="email-login-box" hidden>
-      <div class="login-tabs" id="login-tabs">
-        <button type="button" class="login-tab is-on" data-mode="password">账号密码</button>
-        <button type="button" class="login-tab" data-mode="email">邮箱验证码</button>
-      </div>
-      <form class="login-form" id="email-form" autocomplete="on" novalidate hidden>
-        <div>
-          <label for="f-email">管理员邮箱</label>
-          <input class="field" id="f-email" name="email" type="email"
-                 autocomplete="email" required maxlength="200" placeholder="已登记的管理员邮箱" spellcheck="false">
-        </div>
-        <div>
-          <label for="f-code">验证码</label>
-          <div class="login-code-row">
-            <input class="field" id="f-code" name="code" type="text"
-                   autocomplete="one-time-code" required maxlength="6"
-                   placeholder="6 位验证码" inputmode="numeric" pattern="[0-9]*">
-            <button class="btn btn--ghost" id="send-code-btn" type="button">发送验证码</button>
-          </div>
-        </div>
-        <button class="btn btn--primary btn--block" type="submit" id="email-login-btn" style="height:46px;">验证码登录</button>
-      </form>
-    </div>
+    <!-- v1.2.2 插件可在此锚点注入额外入口（如邮箱验证码登录）——由插件 JS 自行创建 -->
+    <div id="login-plugin-slot"></div>
 
     <form class="login-form" id="login-form" autocomplete="on" novalidate>
       <div class="login-err" id="login-err" role="alert"></div>
@@ -93,7 +58,7 @@
 
 <div class="toast-zone" id="toast-zone" aria-live="polite"></div>
 
-<script src="assets/api.js?v=20261116e"></script>
+<script src="assets/api.js?v=20261118a"></script>
 <script>
 (function () {
   'use strict';
@@ -108,11 +73,9 @@
   var userEl = document.getElementById('f-user');
   var passEl = document.getElementById('f-pass');
 
-  // 回跳地址：只接受站内相对路径，防开放重定向
   function nextUrl() {
     var raw = new URLSearchParams(location.search).get('next') || '';
     if (!raw) return 'index.html';
-    // 必须以单个 / 开头，且不含协议/双斜杠
     if (!/^\/(?!\/)/.test(raw)) return 'index.html';
     if (/[\r\n]/.test(raw)) return 'index.html';
     return raw;
@@ -127,7 +90,6 @@
     errBox.classList.remove('is-on');
   }
 
-  // 已登录就直接进后台，省一次输入
   API.me().then(function () {
     location.replace(nextUrl());
   }).catch(function () { /* 未登录，正常显示表单 */ });
@@ -159,98 +121,23 @@
 
   userEl.focus();
 
-  /* ===== v1.2.1 登录增强：按已启用插件显示入口 ===== */
-  function adminFetch(path, body) {
-    return fetch(new URL('../api/admin' + path, location.href).toString(), {
-      method: 'POST', credentials: 'same-origin', cache: 'no-store',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json',
-                 'Origin': location.origin },
-      body: JSON.stringify(body || {})
-    }).then(function (r) {
-      return r.json().then(function (j) {
-        if (!r.ok) { throw new Error((j && j.message) || '请求失败'); }
-        return j;
-      });
-    });
-  }
+  /* ===== v1.2.2 通用插件资源加载器：按 /api/features 注入已启用插件的 login 资源 ===== */
   fetch(new URL('../api/features', location.href).toString(), { credentials: 'same-origin', cache: 'no-store' })
     .then(function (r) { return r.ok ? r.json() : {}; })
     .then(function (j) {
-      var f = (j && j.data) || j || {};
-      if (f.login_dark_mode) {
-        var t = document.getElementById('login-theme-toggle');
-        if (t) t.hidden = false;
-      }
-      if (f.smtp_login) {
-        var box = document.getElementById('email-login-box');
-        if (box) box.hidden = false;
-        setupEmailLogin();
-      }
+      var d = (j && j.data) || j || {};
+      var list = (d.assets && d.assets.login) || [];
+      list.forEach(function (rel) {
+        var url = new URL(rel, location.href).toString();
+        if (/\.css(\?|$)/.test(rel)) {
+          var link = document.createElement('link');
+          link.rel = 'stylesheet'; link.href = url; document.head.appendChild(link);
+        } else {
+          var s = document.createElement('script');
+          s.src = url; document.body.appendChild(s);
+        }
+      });
     }).catch(function () {});
-
-  function setupEmailLogin() {
-    var box = document.getElementById('email-login-box');
-    var pwForm = document.getElementById('login-form');
-    var emailForm = document.getElementById('email-form');
-    var tabs = document.querySelectorAll('.login-tab');
-    var emailEl = document.getElementById('f-email');
-    var codeEl = document.getElementById('f-code');
-    var sendBtn = document.getElementById('send-code-btn');
-    var emailErr = document.createElement('div');
-    emailErr.className = 'login-err';
-    emailErr.setAttribute('role', 'alert');
-    emailForm.insertBefore(emailErr, emailForm.firstChild);
-    function eErr(msg) { emailErr.textContent = msg || ''; emailErr.classList.toggle('is-on', !!msg); }
-    tabs.forEach(function (tab) {
-      tab.addEventListener('click', function () {
-        tabs.forEach(function (t) { t.classList.remove('is-on'); });
-        tab.classList.add('is-on');
-        var email = tab.getAttribute('data-mode') === 'email';
-        emailForm.hidden = !email;
-        pwForm.hidden = email;
-        eErr('');
-        if (email) emailEl.focus();
-      });
-    });
-    var cool = 0;
-    sendBtn.addEventListener('click', function () {
-      var email = emailEl.value.trim();
-      if (!email) { eErr('请输入管理员邮箱'); emailEl.focus(); return; }
-      var now = Date.now();
-      if (now < cool) { eErr('发送过于频繁，请稍后再试'); return; }
-      sendBtn.disabled = true;
-      var old = sendBtn.textContent;
-      sendBtn.textContent = '发送中…';
-      adminFetch('/login/email/send-code', { email: email }).then(function () {
-        eErr('');
-        cool = Date.now() + 60000;
-        sendBtn.textContent = '已发送';
-        codeEl.focus();
-      }).catch(function (err) {
-        eErr(err.message || '发送失败');
-      }).then(function () {
-        sendBtn.disabled = false;
-        sendBtn.textContent = old;
-      });
-    });
-    emailForm.addEventListener('submit', function (e) {
-      e.preventDefault();
-      eErr('');
-      var email = emailEl.value.trim();
-      var code = codeEl.value.trim();
-      if (!email) { eErr('请输入管理员邮箱'); emailEl.focus(); return; }
-      if (!/^\d{6}$/.test(code)) { eErr('请输入 6 位数字验证码'); codeEl.focus(); return; }
-      var b = document.getElementById('email-login-btn');
-      b.disabled = true;
-      adminFetch('/login/email/verify', { email: email, code: code }).then(function () {
-        location.replace(nextUrl());
-      }).catch(function (err) {
-        eErr(err.message || '验证码错误或已过期');
-        codeEl.value = '';
-        codeEl.focus();
-      }).then(function () { b.disabled = false; });
-    });
-  }
 })();
 </script>
 </body>

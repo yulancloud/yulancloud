@@ -190,16 +190,8 @@
       return request('DELETE', '/extensions/' + type + '/' + encodeURIComponent(id));
     },
 
-    /* ---- v1.2.1 功能插件底座 ---- */
-    mailConfig: function () { return request('GET', '/mail/settings'); },
-    saveMailConfig: function (config) { return request('PUT', '/mail/settings', { config: config }); },
-    sendMailTest: function (to) { return request('POST', '/mail/test', { to: to }); },
-    admins: function () { return request('GET', '/admins'); },
-    createAdmin: function (data) { return request('POST', '/admins', data); },
-    updateAdmin: function (id, data) { return request('PUT', '/admins/' + id, data); },
-    setAdminStatus: function (id, status) { return request('POST', '/admins/' + id + '/status', { status: status }); },
-    resetAdminPassword: function (id) { return request('POST', '/admins/' + id + '/reset-password', {}); },
-    deleteAdmin: function (id) { return request('DELETE', '/admins/' + id); },
+    // v1.2.2：功能插件用自己的通用 get/post/put/del 调 /plugin/<id>/... 路径，
+    // 主程序不再内置 mailConfig / admins 等方法。
 
     /* ---- v5：用户 / 余额 ---- */
     users: function (q) { return request('GET', '/users' + qs(q)); },

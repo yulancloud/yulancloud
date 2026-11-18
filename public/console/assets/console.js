@@ -11,6 +11,9 @@
 (function () {
   'use strict';
 
+  // v1.2.2 插件扩展点：插件可往这些数组注册回调，向登录/注册表单注入字段或校验逻辑。
+  window.ConsoleExt = { hooks: { authForm: [], beforeSubmit: [] }, currentMode: null };
+
   /* ---------- API 基址自动探测（支持子目录部署） ---------- */
   function detectApiBase() {
     var meta = document.querySelector('meta[name="shop-api-base"]');
@@ -219,6 +222,21 @@
         payload.display_name = fName.input.value.trim();
       }
 
+      // v1.2.2 插件钩子：插件可往 payload 追加字段（如邮箱验证码），
+      // 或返回 false 阻止提交（前端先校验；后端仍有对应校验钩子）。
+      if (window.ConsoleExt && Array.isArray(window.ConsoleExt.hooks.beforeSubmit)) {
+        for (var i = 0; i < window.ConsoleExt.hooks.beforeSubmit.length; i++) {
+          var ret;
+          try { ret = window.ConsoleExt.hooks.beforeSubmit[i](payload, mode, form); }
+          catch (e2) { ret = false; }
+          if (ret === false) {
+            submit.disabled = false;
+            submit.textContent = mode === 'login' ? '登录' : '注册并登录';
+            return;
+          }
+        }
+      }
+
       var path = mode === 'login' ? '/console/login' : '/console/register';
       request('POST', path, payload).then(function (data) {
         state.user = data.user;
@@ -233,9 +251,18 @@
       });
     };
 
+    // v1.2.2 插件钩子：允许插件在注册/登录表单注入额外字段与交互
+    if (window.ConsoleExt && Array.isArray(window.ConsoleExt.hooks.authForm)) {
+      window.ConsoleExt.hooks.authForm.forEach(function (fn) {
+        try { fn(form, mode, { field: field, err: function (m) { errBox.textContent = m; errBox.hidden = !m; } }); }
+        catch (e) { /* 单个插件出错不影响登录 */ }
+      });
+    }
+
     card.appendChild(form);
     wrap.appendChild(card);
     app.appendChild(wrap);
+    if (window.ConsoleExt) { window.ConsoleExt.currentMode = mode; }
   }
 
   /* =============================================================
@@ -1015,6 +1042,36 @@
     });
   });
 
+  // v1.2.2 通用插件资源加载器：先注入插件脚本（它们注册 ConsoleExt.hooks），再 boot。
+  // 动态 script 用 Promise 串行等待 onload，保证 authForm/beforeSubmit 钩子在首屏渲染前就绪。
+  function loadPluginAssets() {
+    return fetch(new URL('../api/features', location.href).toString(), { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : {}; })
+      .then(function (j) {
+        var d = (j && j.data) || j || {};
+        var list = (d.assets && d.assets.console) || [];
+        var chain = Promise.resolve();
+        list.forEach(function (rel) {
+          chain = chain.then(function () {
+            return new Promise(function (resolve) {
+              var url = new URL(rel, location.href).toString();
+              if (/\.css(\?|$)/.test(rel)) {
+                var link = document.createElement('link');
+                link.rel = 'stylesheet'; link.href = url; document.head.appendChild(link);
+                resolve();
+              } else {
+                var s = document.createElement('script');
+                s.src = url;
+                s.onload = resolve; s.onerror = resolve;
+                document.body.appendChild(s);
+              }
+            });
+          });
+        });
+        return chain;
+      }).catch(function () {});
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     var lo = $('#btnLogout');
     if (lo) {
@@ -1028,6 +1085,6 @@
         }).catch(function () { location.reload(); });
       };
     }
-    boot();
+    loadPluginAssets().then(boot);
   });
 })();
