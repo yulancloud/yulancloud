@@ -231,7 +231,27 @@ switch (true) {
         foreach (PluginRuntime::assets('admin') as $a) {
             $slots['admin'][] = '../api/plugin-asset/' . $a['id'] . '/' . $a['path'];
         }
-        Response::ok(['plugins' => PluginRuntime::ids(), 'assets' => $slots]);
+        // 诊断信息：供后台「Extensions」页的自检面板判断功能插件是否真正生效。
+        // 每个 id 给出它声明的路由数 / 各槽位资源数，前端据此提示「已生效」还是「需要升级/刷新」。
+        $diag = [];
+        $loaded = PluginRuntime::loaded();
+        foreach ($loaded as $pid => $p) {
+            $d = $p['declare'];
+            $diag[$pid] = [
+                'routes' => count($d['routes'] ?? []),
+                'assets' => [
+                    'login'   => count($d['assets']['login'] ?? []),
+                    'console' => count($d['assets']['console'] ?? []),
+                    'admin'   => count($d['assets']['admin'] ?? []),
+                ],
+            ];
+        }
+        Response::ok([
+            'plugins' => PluginRuntime::ids(),
+            'assets'  => $slots,
+            'build'   => '20261118a',
+            'diag'    => $diag,
+        ]);
 
     // v1.2.2 插件前端资源（JS/CSS），只输出已启用插件声明过的文件
     case preg_match('#^/api/plugin-asset/([a-z0-9-]+)/(.+)$#', $path, $m) === 1 && $method === 'GET':

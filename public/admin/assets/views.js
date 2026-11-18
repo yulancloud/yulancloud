@@ -1196,6 +1196,9 @@
         '<div class="sec-title">已装插件</div>' +
         '<div class="panel-card"><div id="ext-plugins">' + loadingBox() + '</div></div>' +
 
+        '<div class="sec-title">功能插件自检</div>' +
+        '<div class="panel-card"><div id="ext-diag">' + loadingBox() + '</div></div>' +
+
         '<div class="notice notice--warn" style="margin-top:14px">' +
           '<b>包里要有什么？</b><br>' +
           '· <code>plugin.json</code>：写明 <code>id</code>（小写英文+连字符）、<code>name</code>、' +
@@ -1261,7 +1264,82 @@
           '</tr></thead><tbody>' + rows + '</tbody></table></div>';
       }
 
+      // 三个官方功能插件：id -> 它应该往哪个槽位注入界面
+      var FEATURE_PLUGINS = {
+        'smtp-login':     { name: 'SMTP 邮箱验证码注册', slots: ['admin', 'console'] },
+        'multi-admin':    { name: '多管理员账号',        slots: ['admin'] },
+        'login-dark-mode':{ name: '登录页深色模式',      slots: ['login'] }
+      };
+
+      // 功能插件自检：直接读公开端点 /api/features，判断每个插件是否真正生效。
+      // 判断依据：插件出现在 diag 里 = 后端已加载；对应槽位资源非空 = 前端会注入界面。
+      // 全部通过仍看不到界面时，多半是浏览器/CDN 缓存了旧 JS，给出强刷提示。
+      function renderDiag() {
+        var box = document.getElementById('ext-diag');
+        if (!box) return;
+        fetch(new URL('../api/features', location.href).toString(),
+              { credentials: 'same-origin', cache: 'no-store' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (j) {
+            var d = (j && j.data) || j || {};
+            var diag = d.diag || {};
+            var slots = d.assets || {};
+            var build = d.build || '—';
+            var rows = '';
+            var ids = Object.keys(FEATURE_PLUGINS);
+            ids.forEach(function (id) {
+              var meta = FEATURE_PLUGINS[id];
+              var loaded = !!diag[id];
+              var missing = [];
+              meta.slots.forEach(function (s) {
+                var arr = (slots[s] || []);
+                var has = arr.some(function (u) { return u.indexOf('/' + id + '/') >= 0; });
+                if (!has) missing.push(s);
+              });
+              var badge, tip;
+              if (!loaded) {
+                badge = '<span class="badge">未安装</span>';
+                tip = '未检测到该插件。请在上方「上传扩展包」安装对应 v1.1 包，或确认已启用。';
+              } else if (missing.length) {
+                badge = '<span class="badge badge--accent">部分缺失</span>';
+                tip = '后端已加载，但缺失界面资源槽位：' + missing.join('、') + '。包可能不完整，请重新上传 v1.1 包覆盖安装。';
+              } else {
+                badge = '<span class="badge badge--ok">已生效</span>';
+                tip = '已加载，界面会自动注入到：' + meta.slots.join('、') + '。';
+              }
+              rows += '<tr>' +
+                '<td><div class="tbl__name">' + esc(meta.name) + '</div>' +
+                  '<div class="tbl__sub">' + esc(id) + '</div></td>' +
+                '<td>' + badge + '</td>' +
+                '<td class="tbl__sub">' + esc(tip) + '</td>' +
+              '</tr>';
+            });
+            var buildOk = (build === '20261118a');
+            box.innerHTML =
+              '<div class="panel-card__body">' +
+                '<div class="notice" style="margin-top:0">' +
+                  '系统构建号 <code>' + esc(build) + '</code>。' +
+                  (buildOk
+                    ? '你的系统支持功能插件（需 20261118a / v1.2.2）。'
+                    : '<b>构建号过低，功能插件需要 v1.2.2（20261118a）。请先升级系统包再装插件。</b>') +
+                '</div>' +
+                '<div class="tbl-wrap"><table class="tbl"><thead><tr>' +
+                  '<th>功能插件</th><th>状态</th><th>说明</th>' +
+                '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+                '<div class="notice notice--warn" style="margin-top:12px">' +
+                  '<b>装了却看不到界面？</b> 请先<b>强制刷新</b>（Windows 按 Ctrl+F5，Mac 按 Cmd+Shift+R）；' +
+                  '还不行就清一下浏览器缓存或用无痕窗口打开。若用了 CDN，也要刷新 CDN 缓存。' +
+                  '功能插件必须走<b>本页上方上传 zip</b>，不能只把文件复制到网站目录。' +
+                '</div>' +
+              '</div>';
+          })
+          .catch(function (err) {
+            box.innerHTML = stateBox('自检失败', (err && err.message) || '无法读取 /api/features');
+          });
+      }
+
       function reload() {
+        renderDiag();
         return API.extensions().then(function (d) {
           themesBox.innerHTML = tableHtml(d.themes, 'theme', '还没有主题，上传一个主题包试试');
           pluginBox.innerHTML = tableHtml(d.plugins, 'plugin', '还没有插件，上传一个插件包试试');
