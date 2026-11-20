@@ -340,6 +340,18 @@ if (!tableExists($pdo, 'yulan_accounts')) {
     echo "✓ yulan_accounts 表已存在\n";
 }
 
+// ---------- 2.5.0 v1.3 财务魔方 API（多服务器配置） ----------
+if (!tableExists($pdo, 'yulan_apis')) {
+    $steps[] = '创建 yulan_apis 表（财务魔方 API 多服务器配置）';
+} else {
+    echo "✓ yulan_apis 表已存在\n";
+}
+if (!columnExists($pdo, 'products', 'yulan_api_id')) {
+    $steps[] = 'products 增加列 yulan_api_id（商品绑定财务魔方 API）';
+} else {
+    echo "✓ products.yulan_api_id 已存在\n";
+}
+
 // ---------- 2.5.1 v1.2.1 功能底座：邮箱验证码 / 多管理员邮箱 ----------
 if (!columnExists($pdo, 'admin_users', 'email')) {
     $steps[] = 'admin_users 增加列 email（邮箱验证码登录映射）';
@@ -440,6 +452,11 @@ try {
         $pdo->exec("ALTER TABLE products ADD COLUMN flaws TEXT NOT NULL DEFAULT ''");
     }
 
+    // v1.3：商品绑定财务魔方 API（0=不使用，回退商品级/全局默认）
+    if (!columnExists($pdo, 'products', 'yulan_api_id')) {
+        $pdo->exec("ALTER TABLE products ADD COLUMN yulan_api_id INTEGER NOT NULL DEFAULT 0");
+    }
+
     // yulan_accounts 表
     if (!tableExists($pdo, 'yulan_accounts')) {
         $pdo->exec(<<<'SQL'
@@ -459,6 +476,25 @@ SQL
         );
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_yulan_accounts_order  ON yulan_accounts (order_id)');
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_yulan_accounts_product ON yulan_accounts (product_id, account)');
+    }
+
+    // v1.3：财务魔方 API 多服务器配置表
+    if (!tableExists($pdo, 'yulan_apis')) {
+        $pdo->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS yulan_apis (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  name        TEXT NOT NULL,
+  server_ip   TEXT NOT NULL DEFAULT '',
+  server_port TEXT NOT NULL DEFAULT '8321',
+  server_user TEXT NOT NULL DEFAULT '',
+  server_pass TEXT NOT NULL DEFAULT '',
+  rdp_host    TEXT NOT NULL DEFAULT '',
+  enabled     INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+)
+SQL
+        );
     }
 
     // v1.2.1：后台管理员邮箱（邮箱验证码登录映射）

@@ -1,4 +1,4 @@
-# 拾物集商城 v5 · API 契约文档
+# 欲蓝财务 v5 · API 契约文档
 
 > 版本：5.0 · 最后更新：2026-11-13
 > 基础路径：`{BASE}/api`（`{BASE}` 为站点根，子目录部署时自动带前缀）
@@ -109,22 +109,22 @@
 {
   "ok": true,
   "data": {
-    "site_name": "拾物集",
-    "site_name_en": "SHIWU",
+    "site_name": "欲蓝财务",
+    "site_name_en": "YULAN",
     "hero_eyebrow": "八件器物",
     "hero_title": "少而耐，用得顺手",
     "hero_subtitle": "来自六个小工坊的日用器物",
-    "site_intro": "拾物集只做少数几种日用器物……",
+    "site_intro": "欲蓝财务只做少数几种日用器物……",
     "home_notice": "",
     "home_products_title": "在售器物",
     "footer_note": "手工制作，略有差异",
-    "footer_copyright": "© 2026 拾物集",
+    "footer_copyright": "© 2026 欲蓝财务",
     "footer_icp": "",
     "footer_contact": "",
     "support_email": "",
     "support_wechat": "",
     "support_qq": "",
-    "meta_title": "拾物集 · 日用器物",
+    "meta_title": "欲蓝财务 · 日用器物",
     "meta_description": "八件日用器物，来自六个小工坊。",
     "console_welcome": "欢迎回来"
   }

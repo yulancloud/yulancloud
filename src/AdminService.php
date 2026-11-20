@@ -1172,7 +1172,7 @@ final class AdminService
         $stmt = $pdo->prepare(
             'SELECT id, name, type, delivery_template, yulan_account_limit, yulan_ip_restrict,
                     yulan_server_ip, yulan_server_port, yulan_server_user, yulan_rdp_host,
-                    yulan_server_pass
+                    yulan_server_pass, yulan_api_id
              FROM products WHERE id = ?'
         );
         $stmt->execute([$productId]);
@@ -1197,6 +1197,8 @@ final class AdminService
             'yulan_server_user'      => (string)$p['yulan_server_user'],
             'yulan_rdp_host'         => (string)$p['yulan_rdp_host'],
             'yulan_server_pass_set'  => ((string)$p['yulan_server_pass']) !== '',
+            'yulan_api_id'           => (int)($p['yulan_api_id'] ?? 0),
+            'apis'                   => class_exists('YulanApiService') ? YulanApiService::list() : [],
             'fields'              => array_map(static fn($r) => [
                 'label' => (string)$r['label'],
                 'value' => (string)$r['value'],
@@ -1266,6 +1268,15 @@ final class AdminService
         // 欲蓝专属配置
         $limit = self::intVal($in['yulan_account_limit'] ?? 0, 0, 1000000, '账号限购数量');
         $ipr   = self::intVal($in['yulan_ip_restrict'] ?? 0, 0, 1, 'IP 限制开关');
+        // v1.3：商品绑定的财务魔方 API（0=不使用）。校验引用存在，防止悬空 ID。
+        $apiId = self::intVal($in['yulan_api_id'] ?? 0, 0, 1000000, '财务魔方 API');
+        if ($apiId > 0 && class_exists('YulanApiService')) {
+            try {
+                YulanApiService::get($apiId);
+            } catch (Throwable $e) {
+                Response::fail('invalid_api', '选择的财务魔方 API 不存在', 400);
+            }
+        }
 
         // v5.5：商品级欲蓝服务器配置（留空 = 用全局默认；口令只写不读）
         $srvIp   = self::text($in['yulan_server_ip'] ?? '', 0, 64, '欲蓝服务器 IP');
@@ -1296,16 +1307,16 @@ final class AdminService
         }
 
         Db::tx(function (PDO $pdo) use (
-            $productId, $type, $template, $clean, $limit, $ipr,
+            $productId, $type, $template, $clean, $limit, $ipr, $apiId,
             $srvIp, $srvPort, $srvUser, $srvRdpHost, $srvPassSet, $srvPass
         ): void {
             $pdo->prepare(
                 "UPDATE products
                  SET type = ?, delivery_template = ?, yulan_account_limit = ?, yulan_ip_restrict = ?,
                      yulan_server_ip = ?, yulan_server_port = ?, yulan_server_user = ?, yulan_rdp_host = ?,
-                     updated_at = datetime('now')
+                     yulan_api_id = ?, updated_at = datetime('now')
                  WHERE id = ?"
-            )->execute([$type, $template, $limit, $ipr, $srvIp, $srvPort, $srvUser, $srvRdpHost, $productId]);
+            )->execute([$type, $template, $limit, $ipr, $srvIp, $srvPort, $srvUser, $srvRdpHost, $apiId, $productId]);
             // 口令仅在明确提交时更新（只写不读，绝不回显）
             if ($srvPassSet) {
                 $pdo->prepare("UPDATE products SET yulan_server_pass = ?, updated_at = datetime('now') WHERE id = ?")
@@ -1324,6 +1335,7 @@ final class AdminService
             'fields'                 => count($clean),
             'yulan_account_limit'    => $limit,
             'yulan_ip_restrict'      => $ipr,
+            'yulan_api_id'           => $apiId,
             'yulan_server_ip'        => $srvIp,
             'yulan_server_port'      => $srvPort,
             'yulan_server_user'      => $srvUser,

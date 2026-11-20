@@ -74,7 +74,7 @@
     }
     var v = V[name];
     document.getElementById('view-title').textContent = v.title;
-    document.title = v.title + ' — 拾物集后台';
+    document.title = v.title + ' — 欲蓝财务后台';
 
     // 侧栏高亮
     document.querySelectorAll('.side__link[data-view]').forEach(function (b) {

@@ -51,15 +51,32 @@ final class YulanConnector
 
         $response = self::httpPost($url, $body, $token);
         if ($response === null) {
-            return ['ok' => false, 'role' => 'user', 'detail' => '无法连接欲蓝 APP（' . $url . '），请确认 APP 已运行且地址正确'];
+            return ['ok' => false, 'role' => 'user', 'detail' => self::connectHint($url, '无法建立连接')];
         }
 
         $data = json_decode($response, true);
-        if (!is_array($data) || ($data['ok'] ?? false) !== true) {
-            return ['ok' => false, 'role' => 'user', 'detail' => (string)($data['error'] ?? 'APP 返回异常')];
+        if (!is_array($data)) {
+            // v1.3：返回内容不是 JSON —— 最常见原因是「服务器 IP」填成了网站域名，
+            // 请求打到了网站（返回 HTML 404/首页），而不是 Windows 上的 APP。给出针对性提示。
+            $head = strtolower(substr(ltrim($response), 0, 256));
+            if (strpos($head, '<!doctype') === 0 || strpos($head, '<html') !== false) {
+                return ['ok' => false, 'role' => 'user', 'detail' => self::connectHint(
+                    $url,
+                    '目标地址返回的是网页而非 APP 响应——很可能把「服务器 IP」填成了网站域名'
+                )];
+            }
+            return ['ok' => false, 'role' => 'user', 'detail' => self::connectHint($url, 'APP 返回内容不是合法 JSON')];
+        }
+        if (($data['ok'] ?? false) !== true) {
+            $err = self::errorText($data);
+            // v1.3：not_found 说明请求大概率打到了网站（域名填错），而非 Windows APP
+            if (isset($data['error']['code']) && $data['error']['code'] === 'not_found') {
+                $err = self::connectHint($url, '目标地址返回「接口不存在」——很可能把「服务器 IP」填成了网站域名');
+            }
+            return ['ok' => false, 'role' => 'user', 'detail' => $err];
         }
         $role = in_array($data['role'] ?? 'user', ['user', 'admin'], true) ? $data['role'] : 'user';
-        return ['ok' => true, 'role' => $role, 'detail' => (string)($data['detail'] ?? '')];
+        return ['ok' => true, 'role' => $role, 'detail' => self::errorText($data, 'detail')];
     }
 
     /**
@@ -108,13 +125,22 @@ final class YulanConnector
 
         $response = self::httpPost($url, $body, $token);
         if ($response === null) {
-            $fail['detail'] = '无法连接欲蓝 APP（' . $url . '），请确认 APP 已运行且地址正确';
+            $fail['detail'] = self::connectHint($url, '无法建立连接');
             return $fail;
         }
 
         $data = json_decode($response, true);
-        if (!is_array($data) || ($data['ok'] ?? false) !== true) {
-            $fail['detail'] = (string)($data['detail'] ?? $data['error'] ?? 'APP 返回异常');
+        if (!is_array($data)) {
+            $head = strtolower(substr(ltrim($response), 0, 256));
+            if (strpos($head, '<!doctype') === 0 || strpos($head, '<html') !== false) {
+                $fail['detail'] = self::connectHint($url, '目标地址返回网页而非 APP 响应——服务器 IP 可能填成了网站域名');
+                return $fail;
+            }
+            $fail['detail'] = self::connectHint($url, 'APP 返回内容不是合法 JSON');
+            return $fail;
+        }
+        if (($data['ok'] ?? false) !== true) {
+            $fail['detail'] = self::errorText($data, 'detail');
             return $fail;
         }
         return [
@@ -124,6 +150,40 @@ final class YulanConnector
             'account'          => (string)($data['account'] ?? $account),
             'detail'           => (string)($data['detail'] ?? ''),
         ];
+    }
+
+    /** 从 APP 响应里安全地取出文本错误信息（error 可能是对象/数组） */
+    private static function errorText(array $data, string $key = 'error'): string
+    {
+        $v = $data[$key] ?? null;
+        if (is_string($v)) {
+            return $v;
+        }
+        if (is_array($v)) {
+            // 兼容 {"error":{"message":"..."}} / {"error":{"code":"x","message":"y"}}
+            if (isset($v['message']) && is_string($v['message'])) {
+                $prefix = isset($v['code']) && is_string($v['code']) ? '[' . $v['code'] . '] ' : '';
+                return $prefix . $v['message'];
+            }
+            return json_encode($v, JSON_UNESCAPED_UNICODE) ?: 'APP 返回异常';
+        }
+        // 兜底：换另一个键试试
+        $alt = $key === 'error' ? ($data['detail'] ?? null) : ($data['error'] ?? null);
+        if (is_string($alt)) {
+            return $alt;
+        }
+        return 'APP 返回异常';
+    }
+
+    /**
+     * v1.3：把连接失败的原因拼成可操作的提示，帮用户自查配置。
+     * 关键点：APP 跑在客户自己的 Windows 服务器 IP:8321 上，不在网站域名上。
+     */
+    private static function connectHint(string $url, string $reason): string
+    {
+        return $reason . '。请检查：① 后台「服务器 IP」应填运行 Windows APP 那台机器的 IP（不是网站域名）；'
+            . '② 端口与 APP 配置一致（默认 8321）；③ APP 已用管理员权限启动；④ 服务器防火墙放行该端口；'
+            . '⑤ 口令与 APP 的 token 一致。当前请求地址：' . $url;
     }
 
     /** 从站点设置拼出连接器配置（全局默认值） */
@@ -158,9 +218,46 @@ final class YulanConnector
         return $cfg;
     }
 
-    /** 交付给用户的「连接地址」：优先商品级 yulan_rdp_host / 商品 IP，再回退全局 */
+    /**
+     * v1.3：按商品绑定的「财务魔方 API」解析连接配置。
+     *
+     * 优先级（高 → 低）：
+     *   1. 商品绑定了启用的 API（yulan_api_id > 0）→ 用该 API 的 IP/端口/口令
+     *   2. 否则回退商品级 yulan_server_* 字段（旧行为）
+     *   3. 再否则用全局设置（configFromSettings）
+     *
+     * @param array $cfg        全局配置（configFromSettings 的结果）
+     * @param array $productRow 商品行（需含 yulan_api_id 及商品级 yulan_server_* 字段）
+     * @return array{ip:string,port:int,user:string,pass:string,rdp_host?:string}
+     */
+    public static function resolveConfig(array $cfg, array $productRow): array
+    {
+        $apiId = (int)($productRow['yulan_api_id'] ?? 0);
+        if ($apiId > 0 && class_exists('YulanApiService')) {
+            $api = YulanApiService::connectionConfig($apiId);
+            if ($api !== null && $api['ip'] !== '') {
+                return $api;   // API 绑定优先（完整替换，不再叠加商品级字段）
+            }
+        }
+        return self::resolveProductConfig($cfg, $productRow);
+    }
+
+    /** 交付给用户的「连接地址」：v1.3 绑定 API > 商品级 yulan_rdp_host/IP > 全局 */
     public static function connectionAddress(array $productRow = []): string
     {
+        // v1.3：商品绑定了 API 时，用该 API 的交付地址（rdp_host 优先，否则 server_ip）
+        $apiId = (int)($productRow['yulan_api_id'] ?? 0);
+        if ($apiId > 0 && class_exists('YulanApiService')) {
+            $api = YulanApiService::connectionConfig($apiId);
+            if ($api !== null) {
+                if (!empty($api['rdp_host'])) {
+                    return (string)$api['rdp_host'];
+                }
+                if (!empty($api['ip'])) {
+                    return (string)$api['ip'];
+                }
+            }
+        }
         $pRdp = trim((string)($productRow['yulan_rdp_host'] ?? ''));
         if ($pRdp !== '') {
             return $pRdp;

@@ -144,7 +144,7 @@ final class DeliveryService
 
         // 连接地址：商品级配置优先（yulan_rdp_host / yulan_server_ip），回退全局设置
         $prod = $pdo->prepare(
-            'SELECT yulan_rdp_host, yulan_server_ip FROM products
+            'SELECT yulan_rdp_host, yulan_server_ip, yulan_api_id FROM products
              WHERE id = (SELECT product_id FROM yulan_accounts WHERE order_id = ? AND order_item_id = ?)'
         );
         $prod->execute([$orderId, $itemId]);

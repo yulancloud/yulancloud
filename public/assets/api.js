@@ -230,6 +230,22 @@
       }
     }
 
+    // v1.3：顶部菜单按钮显示 / 隐藏（后台「站点设置」可配）
+    // applySite 先于 applyNavCategories 执行，分类插槽那时还在；把开关存到全局，
+    // 供 applyNavCategories 重绘分类链接时沿用，避免刷新后分类又冒出来。
+    var nav = {
+      all:      s.nav_show_all      !== '0',
+      cat:      s.nav_show_cat      !== '0',
+      featured: s.nav_show_featured !== '0'
+    };
+    window.__NAV_VISIBILITY__ = nav;
+    ['all', 'cat', 'featured'].forEach(function (k) {
+      var nodes = document.querySelectorAll('[data-nav="' + k + '"]');
+      for (var i = 0; i < nodes.length; i++) {
+        nodes[i].style.display = nav[k] ? '' : 'none';
+      }
+    });
+
     // 浏览器标题与描述
     if (typeof s.meta_title === 'string' && s.meta_title) {
       document.title = s.meta_title;
@@ -282,14 +298,19 @@
       var mode = slot.getAttribute('data-cat-slot') || 'nav';
       var max = parseInt(slot.getAttribute('data-cat-max') || '0', 10);
       var list = max > 0 ? cats.slice(0, max) : cats;
+      // v1.3：继承原插槽上的 data-nav 标记（插槽本身会被移除），让顶部「分类」开关继续生效
+      var navKey = slot.getAttribute('data-nav');
+      var hidden = navKey && window.__NAV_VISIBILITY__ && window.__NAV_VISIBILITY__[navKey] === false;
+      var attr = navKey ? ' data-nav="' + navKey + '"' : '';
+      var style = hidden ? ' style="display:none"' : '';
       var html = '';
       for (var k = 0; k < list.length; k++) {
         var c = list[k];
         var href = 'index.html#cat-' + encodeURIComponent(c.id);
         var label = escHtml(labels[c.id]);
         html += mode === 'list'
-          ? '<li><a href="' + href + '">' + label + '</a></li>'
-          : '<a href="' + href + '">' + label + '</a>';
+          ? '<li' + attr + style + '><a href="' + href + '">' + label + '</a></li>'
+          : '<a href="' + href + '"' + attr + style + '>' + label + '</a>';
       }
       slot.insertAdjacentHTML('beforebegin', html);
       if (slot.parentNode) slot.parentNode.removeChild(slot);

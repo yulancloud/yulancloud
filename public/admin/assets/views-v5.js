@@ -278,6 +278,11 @@
                 '<div class="hint">开启后，同一 IP 也受「账号限购数量」约束，防止同一人开多个账号刷单。</div>' +
               '</div>' +
             '</div>' +
+            '<div style="font-weight:var(--w-med);margin:14px 0 4px">财务魔方 API（v1.3）</div>' +
+            '<div class="fld" style="margin-bottom:6px"><label for="dv-yulan-api">使用哪个 API</label>' +
+              '<select class="field" id="dv-yulan-api">' + buildApiOptions(d.apis || [], d.yulan_api_id || 0) + '</select>' +
+              '<div class="hint">在后台「财务魔方 API」选项卡里可新增多条命名 API（不同服务器 / 口令）。选择后本商品建号与改密都走该 API，优先级高于下方「本商品服务器」和全局默认。留空则回退下面的配置。</div>' +
+            '</div>' +
             '<div style="font-weight:var(--w-med);margin:14px 0 4px">欲蓝财务魔方 · 本商品服务器（留空则用「欲蓝服务器」里的全局默认）</div>' +
             '<div class="form-grid" style="grid-template-columns:1fr 1fr">' +
               '<div class="fld"><label for="dv-yulan-sip">服务器 IP</label>' +
@@ -343,6 +348,8 @@
           if (type === 'yulan') {
             payload.yulan_account_limit = parseInt(document.getElementById('dv-yulan-limit').value, 10) || 0;
             payload.yulan_ip_restrict = parseInt(document.getElementById('dv-yulan-ip').value, 10) || 0;
+            // v1.3：绑定的财务魔方 API（0=不使用，回退商品级/全局）
+            payload.yulan_api_id = parseInt(document.getElementById('dv-yulan-api').value, 10) || 0;
             // 商品级服务器配置：留空 = 全局默认；口令留空 = 不修改
             payload.yulan_server_ip = document.getElementById('dv-yulan-sip').value.trim();
             payload.yulan_server_port = document.getElementById('dv-yulan-sport').value.trim();
@@ -368,6 +375,17 @@
       });
     }
   };
+
+  /** v1.3：商品发货配置里的「使用哪个 API」下拉选项 */
+  function buildApiOptions(apis, selectedId) {
+    var html = '<option value="0"' + (selectedId === 0 ? ' selected' : '') + '>不使用（回退商品级 / 全局默认）</option>';
+    (apis || []).forEach(function (a) {
+      var sel = (a.id === selectedId) ? ' selected' : '';
+      var dis = a.enabled ? '' : '（已停用）';
+      html += '<option value="' + a.id + '"' + sel + '>' + U.esc(a.name) + dis + ' · ' + U.esc(a.server_ip) + '</option>';
+    });
+    return html;
+  }
 
   function fieldRow(label, value, i) {
     return '<div class="dv-row" style="display:grid;grid-template-columns:1fr 1.6fr 34px;gap:8px;margin-bottom:8px">' +

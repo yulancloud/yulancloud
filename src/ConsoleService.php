@@ -147,7 +147,7 @@ final class ConsoleService
                     o.order_no, o.user_id,
                     p.name AS product_name,
                     p.yulan_rdp_host, p.yulan_server_ip, p.yulan_server_port,
-                    p.yulan_server_user, p.yulan_server_pass
+                    p.yulan_server_user, p.yulan_server_pass, p.yulan_api_id
              FROM yulan_accounts a
              JOIN orders o ON o.id = a.order_id
              LEFT JOIN products p ON p.id = a.product_id
@@ -188,7 +188,7 @@ final class ConsoleService
                     o.order_no, o.user_id,
                     p.name AS product_name,
                     p.yulan_rdp_host, p.yulan_server_ip, p.yulan_server_port,
-                    p.yulan_server_user, p.yulan_server_pass
+                    p.yulan_server_user, p.yulan_server_pass, p.yulan_api_id
              FROM yulan_accounts a
              JOIN orders o ON o.id = a.order_id
              LEFT JOIN products p ON p.id = a.product_id
@@ -249,8 +249,8 @@ final class ConsoleService
             $newPassword = YulanProvision::validatePassword($newPassword);
         }
 
-        // 商品级服务器配置优先，回退全局设置（与建号时一致）
-        $cfg = YulanConnector::resolveProductConfig(
+        // v1.3：商品绑定的 API > 商品级服务器配置 > 全局设置（与建号时一致）
+        $cfg = YulanConnector::resolveConfig(
             YulanConnector::configFromSettings(), $row
         );
         $res = YulanConnector::updateUser(

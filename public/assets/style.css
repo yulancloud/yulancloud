@@ -21,3 +21,21 @@
   width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
   flex: 0 0 auto;
 }
+
+/* ============================================================
+ * v1.3：顶部导航强制单行显示（用户反馈分类多时换行很丑）
+ * 不改 display，保留 ≤820px 的 .nav{display:none} 移动端规则。
+ * ============================================================ */
+.nav {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;          /* Firefox 隐藏滚动条 */
+  -ms-overflow-style: none;
+}
+.nav::-webkit-scrollbar { display: none; }  /* Chrome/Safari 隐藏滚动条 */
+.nav a {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}

@@ -50,7 +50,8 @@ final class YulanProvision
             // 该商品的限购 / IP 限制 / 商品级服务器配置（商品未配置则回退全局）
             $stmt = $pdo->prepare(
                 'SELECT yulan_account_limit, yulan_ip_restrict,
-                        yulan_server_ip, yulan_server_port, yulan_server_user, yulan_server_pass, yulan_rdp_host
+                        yulan_server_ip, yulan_server_port, yulan_server_user, yulan_server_pass, yulan_rdp_host,
+                        yulan_api_id
                  FROM products WHERE id = ?'
             );
             $stmt->execute([$productId]);
@@ -61,8 +62,8 @@ final class YulanProvision
             self::checkLimit($pdo, $userId, $ipHash, $productId, $qty, $limit, $ipr);
             self::assertAccountFree($pdo, $productId, $account);
 
-            // 向 Windows APP 下达建号命令（商品级服务器配置优先，回退全局设置）
-            $itemCfg = YulanConnector::resolveProductConfig($cfg, $p ?: []);
+            // 向 Windows APP 下达建号命令（v1.3：商品绑定的 API > 商品级配置 > 全局设置）
+            $itemCfg = YulanConnector::resolveConfig($cfg, $p ?: []);
             $res = YulanConnector::createUser($itemCfg, $orderNo, $productId, $account, $password);
             $status = $res['ok'] ? 'created' : 'failed';
 

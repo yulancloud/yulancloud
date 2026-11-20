@@ -19,9 +19,9 @@ final class SettingsService
      */
     private const DEFAULTS = [
         // 站点名（顶栏品牌、<title> 前缀）
-        'site_name'        => ['default' => '拾物集', 'max' => 40],
+        'site_name'        => ['default' => '欲蓝财务', 'max' => 40],
         // 英文名（品牌副标）
-        'site_name_en'     => ['default' => 'SHIWU', 'max' => 40],
+        'site_name_en'     => ['default' => 'YULAN', 'max' => 40],
         // 首页主标题（流式大字）
         'hero_title'       => ['default' => '只做少数几种，做得久一点。', 'max' => 80],
         // 首页副标题 / 导语
@@ -31,19 +31,19 @@ final class SettingsService
         // 页脚说明
         'footer_note'      => ['default' => '少而耐的日用器物。上海静安 · 巨鹿路 880 号 2 楼，周三至周日 12:00–20:00 可到店。', 'max' => 300],
         // 页脚版权
-        'footer_copyright' => ['default' => '© 2026 拾物集 SHIWU', 'max' => 160],
+        'footer_copyright' => ['default' => '© 2026 欲蓝财务 YULAN', 'max' => 160],
         // 备案号
         'footer_icp'       => ['default' => '沪 ICP 备 0000000 号', 'max' => 80],
         // 客服邮箱
         'support_email'    => ['default' => 'support@shiwu.example', 'max' => 120],
         // 浏览器标签页标题后缀
-        'meta_title'       => ['default' => '拾物集 SHIWU · 少而耐的日用器物', 'max' => 120],
+        'meta_title'       => ['default' => '欲蓝财务 YULAN · 少而耐的日用器物', 'max' => 120],
         // 站点描述（meta description）
         'meta_description' => ['default' => '八件日用器物，来自六个小工坊。少而耐，用得顺手。', 'max' => 200],
 
         // ---------- v5 新增：站点介绍与前台文案 ----------
         // 站点介绍（关于我们，可多行）
-        'site_intro'       => ['default' => '拾物集只做少数几种日用器物。我们不追新款，只把同一件东西反复改到不用再改。', 'max' => 2000],
+        'site_intro'       => ['default' => '欲蓝财务只做少数几种日用器物。我们不追新款，只把同一件东西反复改到不用再改。', 'max' => 2000],
         // 首页公告条（留空则不显示）
         'home_notice'      => ['default' => '', 'max' => 300],
         // 首页商品区大标题（v1.1 起真正驱动前台 h2 打字文案，旧版前台写死、后台改了不生效）
@@ -55,6 +55,11 @@ final class SettingsService
         // 客服微信 / QQ（留空则不显示）
         'support_wechat'   => ['default' => '', 'max' => 60],
         'support_qq'       => ['default' => '', 'max' => 60],
+
+        // ---------- v1.3：顶部菜单按钮显示 / 隐藏（1=显示，0=隐藏） ----------
+        'nav_show_all'      => ['default' => '1', 'max' => 1],   // 「全部器物 / 总商品」按钮
+        'nav_show_cat'      => ['default' => '1', 'max' => 1],   // 分类按钮组
+        'nav_show_featured' => ['default' => '1', 'max' => 1],   // 「精选器物 / 推荐产品」按钮
 
         // ---------- 易支付（后台可直接配置；留空 = 沿用 config/.env 环境变量） ----------
         // 安全：这些键绝不进入 publicPayload()，前台 /api/site 拿不到任何支付凭据。
@@ -171,14 +176,18 @@ final class SettingsService
                     continue;
                 }
                 if ($v === '__CLEAR__') {
-                    $v = '';
-                }
-                if (mb_strlen($v, 'UTF-8') < 6) {
+                    $v = '';   // 清空：直接放行，跳过长度校验（修复「清除口令」按钮失效）
+                } elseif (mb_strlen($v, 'UTF-8') < 6) {
                     throw new InvalidArgumentException('设置项「' . $k . '」至少 6 位字符');
                 }
             }
             // yulan_mock 只允许 0/1
             if ($k === 'yulan_mock' && !in_array($v, ['0', '1', ''], true)) {
+                throw new InvalidArgumentException('设置项「' . $k . '」只能是 0 或 1');
+            }
+            // v1.3：顶部菜单开关只允许 0/1
+            if (in_array($k, ['nav_show_all', 'nav_show_cat', 'nav_show_featured'], true)
+                && !in_array($v, ['0', '1'], true)) {
                 throw new InvalidArgumentException('设置项「' . $k . '」只能是 0 或 1');
             }
             // 运费两项必须是非负金额（最多两位小数）。留空表示沿用服务器默认值，
@@ -304,6 +313,10 @@ final class SettingsService
             'home_notice'      => $s['home_notice'],
             'home_products_title' => $s['home_products_title'],
             'console_welcome'  => $s['console_welcome'],
+            // v1.3：顶部菜单按钮显示 / 隐藏
+            'nav_show_all'      => $s['nav_show_all'],
+            'nav_show_cat'      => $s['nav_show_cat'],
+            'nav_show_featured' => $s['nav_show_featured'],
             // 运费规则（分）：前台购物袋据此预览运费，与服务端下单计算完全一致
             'ship_fee_cents'            => $rule['ship_fee_cents'],
             'free_ship_threshold_cents' => $rule['free_ship_threshold_cents'],

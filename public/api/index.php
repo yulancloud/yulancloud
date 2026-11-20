@@ -114,6 +114,8 @@ require_once $SRC . '/Path.php';
 require_once $SRC . '/SettingsService.php';
 require_once $SRC . '/YulanConnector.php';
 require_once $SRC . '/YulanProvision.php';
+require_once $SRC . '/YulanApiService.php';   // v1.3 财务魔方 API 多服务器配置
+require_once $SRC . '/UpdateService.php';     // v1.3 在线更新（保留设置与主页设计）
 require_once $SRC . '/ExtensionService.php';   // v1.2 后台主题 / 插件上传安装
 require_once $SRC . '/PluginRuntime.php';      // v1.2.2 插件运行时（所有功能由插件实现）
 require_once $SRC . '/Installer.php';
@@ -193,9 +195,9 @@ switch (true) {
             'status' => 'up',
             'time' => date('c'),
             'installed' => $installed,
-            'version' => '5.5',
+            'version' => '1.3.0',
             // 构建号：升级后用 curl /api/health 看这里即可确认服务器跑的是不是新代码
-            'build' => '20261118a',
+            'build' => '20261120a',
             'php' => PHP_VERSION,
         ]);
 
@@ -249,7 +251,7 @@ switch (true) {
         Response::ok([
             'plugins' => PluginRuntime::ids(),
             'assets'  => $slots,
-            'build'   => '20261118a',
+            'build'   => '20261120a',
             'diag'    => $diag,
         ]);
 
@@ -995,6 +997,53 @@ switch (true) {
         Audit::log($u['id'], $u['username'], 'site_settings_reset', '', '');
         Response::ok(['settings' => $r]);
 
+    // ================= v1.3 财务魔方 API 多服务器配置 =================
+    case $path === '/api/admin/yulan-apis' && $method === 'GET':
+        AdminAuth::require();
+        Response::ok(['items' => YulanApiService::list()]);
+
+    case $path === '/api/admin/yulan-apis' && $method === 'POST':
+        $u = AdminAuth::require();
+        $body = readJsonBody();
+        $r = YulanApiService::create($body);
+        Audit::log($u['id'], $u['username'], 'yulan_api_create', (string)$r['id'], $r['name']);
+        Response::ok(['item' => $r]);
+
+    case preg_match('#^/api/admin/yulan-apis/(\d+)$#', $path, $m) === 1 && $method === 'PUT':
+        $u = AdminAuth::require();
+        $body = readJsonBody();
+        $r = YulanApiService::update((int)$m[1], $body);
+        Audit::log($u['id'], $u['username'], 'yulan_api_update', $m[1], $r['name']);
+        Response::ok(['item' => $r]);
+
+    case preg_match('#^/api/admin/yulan-apis/(\d+)$#', $path, $m) === 1 && $method === 'DELETE':
+        $u = AdminAuth::require();
+        $force = isset($_GET['force']) && $_GET['force'] === '1';
+        $r = YulanApiService::delete((int)$m[1], $force);
+        Audit::log($u['id'], $u['username'], 'yulan_api_delete', $m[1], '');
+        Response::ok($r);
+
+    // ================= v1.3 在线更新 =================
+    case $path === '/api/admin/update/check' && $method === 'GET':
+        AdminAuth::require();
+        try {
+            $info = UpdateService::check();
+            Response::ok($info);
+        } catch (Throwable $e) {
+            Response::fail('check_failed', '检查更新失败：' . $e->getMessage(), 502);
+        }
+
+    case $path === '/api/admin/update/run' && $method === 'POST':
+        $u = AdminAuth::requireOwner();
+        $body = readJsonBody();
+        try {
+            $r = UpdateService::run($body);
+            Audit::log($u['id'], $u['username'], 'system_update', '', $r['version'] ?? '');
+            Response::ok($r);
+        } catch (Throwable $e) {
+            Response::fail('update_failed', $e->getMessage(), 500);
+        }
+
     // ---- 账号 ----
     case $path === '/api/admin/password' && $method === 'POST':
         $u = AdminAuth::require();
@@ -1209,6 +1258,7 @@ switch (true) {
             '/api/admin/orders/close-expired', '/api/admin/reviews', '/api/admin/password',
             '/api/admin/audit', '/api/admin/settings', '/api/admin/settings/reset',
             '/api/admin/users',
+            '/api/admin/yulan-apis', '/api/admin/update/check', '/api/admin/update/run',
             '/api/console/register', '/api/console/login', '/api/console/logout',
             '/api/console/me', '/api/console/overview', '/api/console/orders',
             '/api/console/balance/ledger', '/api/console/balance/recharge',
@@ -1225,6 +1275,7 @@ switch (true) {
             || preg_match('#^/api/admin/reviews/\d+/status$#', $path) === 1
             || preg_match('#^/api/admin/users/\d+$#', $path) === 1
             || preg_match('#^/api/admin/users/\d+/(status|reset-password|balance|ledger)$#', $path) === 1
+            || preg_match('#^/api/admin/yulan-apis/\d+$#', $path) === 1
             || preg_match('#^/api/admin/deliveries/\d+$#', $path) === 1
             || preg_match('#^/api/admin/extensions/(theme|plugin)/[a-z0-9-]+(/activate|/toggle)?$#', $path) === 1
             || preg_match('#^/api/plugin-asset/[a-z0-9-]+/.+$#', $path) === 1

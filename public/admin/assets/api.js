@@ -205,6 +205,18 @@
     },
     userLedger: function (id, q) { return request('GET', '/users/' + id + '/ledger' + qs(q)); },
 
+    /* ---- v1.3：财务魔方 API 多服务器配置 ---- */
+    yulanApis: function () { return request('GET', '/yulan-apis'); },
+    createYulanApi: function (item) { return request('POST', '/yulan-apis', item); },
+    updateYulanApi: function (id, item) { return request('PUT', '/yulan-apis/' + id, item); },
+    deleteYulanApi: function (id, force) {
+      return request('DELETE', '/yulan-apis/' + id + (force ? '?force=1' : ''));
+    },
+
+    /* ---- v1.3：在线更新 ---- */
+    updateCheck: function () { return request('GET', '/update/check'); },
+    updateRun: function (opts) { return request('POST', '/update/run', opts || {}); },
+
     /* ---- v5：商品发货模板 ---- */
     productDelivery: function (id) { return request('GET', '/products/' + encodeURIComponent(id) + '/delivery'); },
     saveProductDelivery: function (id, payload) {

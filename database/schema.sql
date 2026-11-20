@@ -1,5 +1,5 @@
 -- =============================================================
--- 拾物集 SHIWU · SQLite 数据库结构 v2
+-- 欲蓝财务 YULAN · SQLite 数据库结构 v2
 -- 金额一律以「分」为整数存储（price_cents），避免浮点误差
 -- 执行：php bin/init_db.php（全新安装） / php bin/migrate.php（升级已有库）
 -- =============================================================
@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS products (
   yulan_server_user TEXT NOT NULL DEFAULT '',
   yulan_server_pass TEXT NOT NULL DEFAULT '',
   yulan_rdp_host    TEXT NOT NULL DEFAULT '',
+  -- v1.3：商品绑定的「财务魔方 API」ID（指向 yulan_apis.id；0=不使用，回退商品级/全局默认）
+  yulan_api_id INTEGER NOT NULL DEFAULT 0,
   status      TEXT NOT NULL DEFAULT 'active'
               CHECK (status IN ('active', 'hidden', 'soldout')),
   sort        INTEGER NOT NULL DEFAULT 0,
@@ -202,6 +204,22 @@ CREATE TABLE IF NOT EXISTS yulan_accounts (
 );
 CREATE INDEX IF NOT EXISTS idx_yulan_accounts_order  ON yulan_accounts (order_id);
 CREATE INDEX IF NOT EXISTS idx_yulan_accounts_product ON yulan_accounts (product_id, account);
+
+-- ---------- v1.3：财务魔方 API（多条服务器连接配置，可自定义名称） ----------
+-- 后台「财务魔方 API」选项卡里增删改；虚拟/欲蓝商品发货时可指定使用哪一条。
+-- 口令 server_pass 只写不读（对外只回传是否配置），与 yulan_server_pass 同一安全基线。
+CREATE TABLE IF NOT EXISTS yulan_apis (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  name        TEXT NOT NULL,                       -- 自定义名称，如「电信机房-A」
+  server_ip   TEXT NOT NULL DEFAULT '',            -- Windows 服务器 IP / 域名
+  server_port TEXT NOT NULL DEFAULT '8321',        -- APP 监听端口
+  server_user TEXT NOT NULL DEFAULT '',            -- 连接鉴权账号（可选，APP 侧基本不用）
+  server_pass TEXT NOT NULL DEFAULT '',            -- 连接鉴权口令（只写不读）
+  rdp_host    TEXT NOT NULL DEFAULT '',            -- 交付给用户的连接地址
+  enabled     INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
 
 -- ---------- 支付流水 ----------
 -- 每次「发起支付」记一条，回调时更新对应记录；保留原始通知用于对账与排障。

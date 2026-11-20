@@ -710,13 +710,13 @@
    * 6b. 站点设置（前台标题/副标题/版权等文案）
    * ============================================================= */
   var SITE_FIELDS = [
-    { key: 'site_name',        label: '站点名称',     hint: '顶栏品牌名，如「拾物集」', max: 40, type: 'text' },
-    { key: 'site_name_en',     label: '英文名',       hint: '品牌副标，如「SHIWU」', max: 40, type: 'text' },
+    { key: 'site_name',        label: '站点名称',     hint: '顶栏品牌名，如「欲蓝财务」', max: 40, type: 'text' },
+    { key: 'site_name_en',     label: '英文名',       hint: '品牌副标，如「YULAN」', max: 40, type: 'text' },
     { key: 'hero_eyebrow',     label: '首页眉标',     hint: '主标题上方的小字，如「EST. 2019 · 上海静安」', max: 60, type: 'text' },
     { key: 'hero_title',       label: '首页主标题',   hint: '首页流式大字标题', max: 80, type: 'text' },
     { key: 'hero_subtitle',    label: '首页副标题',   hint: '主标题下方的导语', max: 300, type: 'textarea' },
     { key: 'footer_note',      label: '页脚说明',     hint: '页脚左侧的店铺说明', max: 300, type: 'textarea' },
-    { key: 'footer_copyright', label: '版权文案',     hint: '如「© 2026 拾物集 SHIWU」；留空则前台隐藏', max: 160, type: 'text' },
+    { key: 'footer_copyright', label: '版权文案',     hint: '如「© 2026 欲蓝财务 YULAN」；留空则前台隐藏', max: 160, type: 'text' },
     { key: 'footer_icp',       label: '备案号',       hint: '如「沪 ICP 备 0000000 号」；留空则前台整行隐藏', max: 80, type: 'text' },
     { key: 'support_email',    label: '客服邮箱',     hint: '页脚「复制客服邮箱」用', max: 120, type: 'text' },
     { key: 'meta_title',       label: '浏览器标题',   hint: '标签页显示的标题', max: 120, type: 'text' },
@@ -729,7 +729,14 @@
     { key: 'footer_contact',      label: '页脚联系方式', hint: '留空则不显示', max: 300, type: 'textarea' },
     { key: 'console_welcome',     label: '用户中心欢迎语', hint: '如「欢迎回来」', max: 60, type: 'text' },
     { key: 'support_wechat',      label: '客服微信',     hint: '留空则不显示', max: 60, type: 'text' },
-    { key: 'support_qq',          label: '客服 QQ',      hint: '留空则不显示', max: 60, type: 'text' }
+    { key: 'support_qq',          label: '客服 QQ',      hint: '留空则不显示', max: 60, type: 'text' },
+    // v1.3：顶部菜单按钮显示 / 隐藏
+    { key: 'nav_show_all',      label: '顶部·全部器物按钮', hint: '首页顶栏第一个导航按钮', max: 1, type: 'select',
+      options: [{ value: '1', label: '显示' }, { value: '0', label: '隐藏' }] },
+    { key: 'nav_show_cat',      label: '顶部·分类按钮', hint: '首页顶栏的分类导航（家居 / 桌面 等）', max: 1, type: 'select',
+      options: [{ value: '1', label: '显示' }, { value: '0', label: '隐藏' }] },
+    { key: 'nav_show_featured', label: '顶部·精选按钮', hint: '首页顶栏「精选器物 / 推荐」按钮', max: 1, type: 'select',
+      options: [{ value: '1', label: '显示' }, { value: '0', label: '隐藏' }] }
   ];
 
   /* 易支付：独立菜单页，保存后由 PaymentService::config() 立即读取。
@@ -1162,6 +1169,213 @@
   };
 
   /* =============================================================
+   * 6b-5. v1.3 财务魔方 API（多条服务器连接，可自定义名称）
+   * 参考智简魔方「服务器分组 / API 授权」：每个 API 指向一台 Windows 服务器，
+   * 商品发货配置里可指定用哪一条。口令只写不读。
+   * ============================================================= */
+  var yulanApis = {
+    title: '财务魔方 API',
+    render: function (host) {
+      host.innerHTML =
+        '<div class="notice"><span>在这里维护多条「财务魔方 API」——每条指向一台运行 Windows APP 的服务器，可自定义名称（如「电信机房-A」）。建好后在「商品管理 → 编辑 → 发货配置 → 使用哪个 API」里选择，该商品的建号 / 改密 / 交付地址都会走这条 API。连接口令出于安全不回显，留空表示不修改。</span></div>' +
+        '<div class="panel-card" style="margin-bottom:16px">' +
+          '<div class="panel-card__head"><h2>API 列表</h2>' +
+            '<div class="panel-card__actions"><button class="btn btn--primary" id="ya-add" type="button">+ 新增 API</button></div>' +
+          '</div>' +
+          '<div class="panel-card__body" id="ya-list">' + loadingBox() + '</div>' +
+        '</div>' +
+        '<div class="panel-card" id="ya-editor-card" hidden>' +
+          '<div class="panel-card__head"><h2 id="ya-editor-title">新增 API</h2></div>' +
+          '<div class="panel-card__body" id="ya-editor"></div>' +
+        '</div>';
+
+      var listEl = document.getElementById('ya-list');
+      var card = document.getElementById('ya-editor-card');
+      var editor = document.getElementById('ya-editor');
+
+      function load() {
+        API.yulanApis().then(function (r) {
+          var items = (r && r.items) || [];
+          if (!items.length) {
+            listEl.innerHTML = stateBox('还没有 API', '点右上角「+ 新增 API」创建第一条服务器连接。');
+            return;
+          }
+          listEl.innerHTML = '<div class="tbl-wrap"><table class="tbl"><thead><tr>' +
+            '<th>名称</th><th>服务器 IP</th><th>端口</th><th>交付地址</th><th>状态</th><th>口令</th><th>操作</th>' +
+            '</tr></thead><tbody>' + items.map(function (a) {
+              return '<tr>' +
+                '<td>' + U.esc(a.name) + '</td>' +
+                '<td>' + U.esc(a.server_ip) + '</td>' +
+                '<td>' + U.esc(a.server_port) + '</td>' +
+                '<td>' + U.esc(a.rdp_host || '—') + '</td>' +
+                '<td>' + (a.enabled ? '<span class="badge badge--ok">启用</span>' : '<span class="badge">停用</span>') + '</td>' +
+                '<td>' + (a.server_pass_set ? '<span class="badge badge--ok">已配置</span>' : '<span class="badge badge--warn">未设置</span>') + '</td>' +
+                '<td>' +
+                  '<button class="btn btn--sm btn--ghost ya-edit" data-id="' + a.id + '" type="button">编辑</button> ' +
+                  '<button class="btn btn--sm btn--ghost ya-del" data-id="' + a.id + '" data-name="' + U.esc(a.name) + '" type="button">删除</button>' +
+                '</td>' +
+              '</tr>';
+            }).join('') + '</tbody></table></div>';
+          listEl.querySelectorAll('.ya-edit').forEach(function (b) {
+            b.addEventListener('click', function () { openEditor(parseInt(b.getAttribute('data-id'), 10)); });
+          });
+          listEl.querySelectorAll('.ya-del').forEach(function (b) {
+            b.addEventListener('click', function () {
+              var id = parseInt(b.getAttribute('data-id'), 10);
+              var name = b.getAttribute('data-name');
+              if (!window.confirm('确定删除 API「' + name + '」？若仍被商品使用会先提示。')) return;
+              b.disabled = true;
+              API.deleteYulanApi(id).then(function () {
+                U.toast('已删除');
+                load();
+              }).catch(function (err) {
+                // 仍被引用：二次确认强制删除（会自动把商品改绑为「不使用」）
+                if (err.code === 'api_in_use' && window.confirm(err.message + '\n\n是否强制删除？被使用的商品会自动改为「不使用」。')) {
+                  return API.deleteYulanApi(id, true).then(function () { U.toast('已强制删除并解绑'); load(); });
+                }
+                U.toast(err.message, 'error');
+              }).then(function () { b.disabled = false; });
+            });
+          });
+        }).catch(function (err) { listEl.innerHTML = stateBox('加载失败', err.message); });
+      }
+
+      function openEditor(id) {
+        var isNew = !id;
+        var task = isNew ? Promise.resolve({ item: null }) : API.yulanApis().then(function (r) {
+          return { item: (r.items || []).filter(function (x) { return x.id === id; })[0] || null };
+        });
+        task.then(function (res) {
+          var a = res.item || {};
+          document.getElementById('ya-editor-title').textContent = isNew ? '新增 API' : '编辑 API #' + id;
+          editor.innerHTML =
+            '<div class="form-grid" style="grid-template-columns:1fr 1fr">' +
+              fld('name', 'API 名称', a.name || '', '如「电信机房-A」，仅后台辨识用', 40) +
+              fld('server_ip', '服务器 IP / 域名', a.server_ip || '', '运行 Windows APP 的服务器地址，如 203.0.113.10', 64) +
+              fld('server_port', 'APP 端口', a.server_port || '8321', '默认 8321', 6) +
+              fld('server_user', '连接账号（可选）', a.server_user || '', '一般留空即可', 64) +
+              fld('rdp_host', '交付用连接地址', a.rdp_host || '', '展示给用户；留空则用服务器 IP', 128) +
+              '<div class="fld"><label for="ya-enabled">状态</label>' +
+                '<select class="field" id="ya-enabled">' +
+                  '<option value="1"' + (a.enabled !== 0 ? ' selected' : '') + '>启用</option>' +
+                  '<option value="0"' + (a.enabled === 0 ? ' selected' : '') + '>停用</option>' +
+                '</select><div class="hint">停用后，绑定该 API 的商品发货会回退到商品级/全局配置</div></div>' +
+              '<div class="fld">' +
+                '<label for="ya-pass">连接口令' + (!isNew && a.server_pass_set ? ' <span class="badge badge--ok">已配置</span>' : '') + '</label>' +
+                '<input class="field" id="ya-pass" type="password" maxlength="128" autocomplete="new-password" placeholder="' +
+                  (!isNew && a.server_pass_set ? '留空表示不修改；填 __CLEAR__ 清除' : '至少 6 位，需与 Windows APP 的 token 一致') + '">' +
+                '<div class="hint">只写不读：' + (!isNew ? '留空保持不变；' : '') + '填 <code>__CLEAR__</code> 清空</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="margin-top:14px;display:flex;gap:8px">' +
+              '<button class="btn btn--primary" id="ya-save" type="button">保存</button>' +
+              '<button class="btn btn--ghost" id="ya-cancel" type="button">取消</button>' +
+            '</div>';
+          card.hidden = false;
+          card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          document.getElementById('ya-cancel').addEventListener('click', function () { card.hidden = true; });
+          document.getElementById('ya-save').addEventListener('click', function (e) {
+            var btn = e.currentTarget;
+            var payload = {
+              name: document.getElementById('ya-name').value.trim(),
+              server_ip: document.getElementById('ya-server_ip').value.trim(),
+              server_port: document.getElementById('ya-server_port').value.trim(),
+              server_user: document.getElementById('ya-server_user').value.trim(),
+              rdp_host: document.getElementById('ya-rdp_host').value.trim(),
+              enabled: parseInt(document.getElementById('ya-enabled').value, 10),
+              server_pass: document.getElementById('ya-pass').value
+            };
+            btn.disabled = true;
+            var p = isNew ? API.createYulanApi(payload) : API.updateYulanApi(id, payload);
+            p.then(function () {
+              U.toast(isNew ? 'API 已创建' : 'API 已更新');
+              card.hidden = true;
+              load();
+            }).catch(function (err) { U.toast(err.message, 'error'); })
+             .then(function () { btn.disabled = false; });
+          });
+        }).catch(function (err) { U.toast(err.message, 'error'); });
+
+        function fld(key, label, val, hint, max) {
+          return '<div class="fld"><label for="ya-' + key + '">' + U.esc(label) + '</label>' +
+            '<input class="field" id="ya-' + key + '" value="' + U.esc(val) + '" maxlength="' + max + '">' +
+            '<div class="hint">' + U.esc(hint) + '</div></div>';
+        }
+      }
+
+      document.getElementById('ya-add').addEventListener('click', function () { openEditor(null); });
+      load();
+    }
+  };
+
+  /* =============================================================
+   * 6b-6. v1.3 在线更新（从 GitHub Release 下载升级，保留设置与主页设计）
+   * ============================================================= */
+  var updateView = {
+    title: '在线更新',
+    render: function (host) {
+      host.innerHTML =
+        '<div class="notice"><span>在线更新会从官方 Release 下载最新版系统包并覆盖程序文件，但会<strong>完整保留</strong>你的数据库（站点设置、主页文案、商品 / 订单）、<code>config/</code> 配置、已安装的主题与插件。升级前建议先在后台或服务器手动备份一次 <code>data/</code> 目录。</span></div>' +
+        '<div class="panel-card">' +
+          '<div class="panel-card__head"><h2>版本信息</h2>' +
+            '<div class="panel-card__actions"><button class="btn btn--primary" id="up-check" type="button">检查更新</button></div>' +
+          '</div>' +
+          '<div class="panel-card__body" id="up-body">' + loadingBox() + '</div>' +
+        '</div>';
+      var body = document.getElementById('up-body');
+      function render(info) {
+        var cur = info.current || {};
+        var latest = info.latest;
+        var html = '<div class="form-grid" style="grid-template-columns:1fr 1fr">' +
+          '<div><div class="muted">当前版本</div><div style="font-size:20px;font-weight:600">v' + U.esc(cur.version || '—') + '</div>' +
+            '<div class="muted">build ' + U.esc(cur.build || '—') + '</div></div>' +
+          '<div><div class="muted">最新版本</div>' +
+            (latest
+              ? '<div style="font-size:20px;font-weight:600">' + U.esc(latest.tag || latest.version || '—') + '</div>' +
+                '<div class="muted">' + (latest.published_at ? ('发布于 ' + U.esc(latest.published_at.slice(0, 10))) : '') + '</div>'
+              : '<div style="font-size:20px;font-weight:600">—</div><div class="muted">未能获取</div>') +
+          '</div></div>';
+        if (info.error) {
+          html += '<div class="notice" style="margin-top:12px"><span>' + U.esc(info.error) + '</span></div>';
+        }
+        if (info.update_available && latest && latest.asset) {
+          html += '<div style="margin-top:16px;padding:14px;border-radius:12px;background:var(--accent-soft)' +
+            ';box-shadow:inset 0 0 0 1px var(--hair-2)">' +
+            '<div style="font-weight:600">发现新版本：' + U.esc(latest.tag || latest.version) + '</div>' +
+            (latest.notes ? '<pre style="white-space:pre-wrap;max-height:220px;overflow:auto;font-size:12px;margin:10px 0">' + U.esc(latest.notes) + '</pre>' : '') +
+            '<button class="btn btn--primary" id="up-run" type="button">立即更新（保留设置与设计）</button>' +
+            '</div>';
+        } else if (info.update_available === false) {
+          html += '<div class="notice" style="margin-top:12px"><span>已是最新版本。</span></div>';
+        }
+        body.innerHTML = html;
+        var run = document.getElementById('up-run');
+        if (run) run.addEventListener('click', function () {
+          if (!window.confirm('确定立即更新到 ' + (latest.tag || '最新版') + '？\n\n将保留数据库、设置、主题与插件，仅覆盖程序文件。')) return;
+          run.disabled = true;
+          run.textContent = '正在下载并安装…请勿关闭页面';
+          API.updateRun({ asset_url: latest.asset.browser_download_url, version: latest.tag || latest.version }).then(function (r) {
+            U.toast('更新完成，页面即将刷新');
+            setTimeout(function () { location.reload(); }, 1200);
+          }).catch(function (err) {
+            U.toast('更新失败：' + err.message, 'error');
+            run.disabled = false;
+            run.textContent = '立即更新（保留设置与设计）';
+          });
+        });
+      }
+      function check() {
+        body.innerHTML = loadingBox();
+        API.updateCheck().then(render).catch(function (err) {
+          body.innerHTML = stateBox('检查失败', err.message);
+        });
+      }
+      document.getElementById('up-check').addEventListener('click', check);
+      check();
+    }
+  };
+
+  /* =============================================================
    * 6c. v1.2 主题与插件（后台上传 zip 安装，零侵入）
    *
    * 与 v1 教程的区别：不用改 style.css、不用改亮暗两套变量、不用 bump ?v=、
@@ -1458,6 +1672,8 @@
     shipping: shippingSettings,
     virtual: virtualDeliverySettings,
     yulan: yulan,
+    yulanApis: yulanApis,
+    update: updateView,
     epay: epaySettings,
     extensions: extensions,
     settings: settings,
