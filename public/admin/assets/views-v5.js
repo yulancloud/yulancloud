@@ -258,9 +258,10 @@
               '<select class="field" id="dv-type">' +
                 '<option value="physical"' + (d.type === 'physical' ? ' selected' : '') + '>实体商品（人工发货）</option>' +
                 '<option value="virtual"' + (d.type === 'virtual' ? ' selected' : '') + '>虚拟商品（支付后自动发货）</option>' +
-                '<option value="yulan"' + (d.type === 'yulan' ? ' selected' : '') + '>欲蓝财务魔方（下单即创建 Windows 账号）</option>' +
+                '<option value="yulan"' + (d.type === 'yulan' ? ' selected' : '') + '>魔方财务（对接上游开通）</option>' +
+                '<option value="cloud"' + (d.type === 'cloud' ? ' selected' : '') + '>魔方云（KVM 云服务器，支付后开通）</option>' +
               '</select>' +
-              '<div class="hint">虚拟商品按模板自动发货；实体商品人工发货；欲蓝财务魔方下单时向 Windows APP 下达建号命令，按「连接地址 + 账号」交付（密码平台不存储）。</div>' +
+              '<div class="hint">实体商品人工发货；虚拟商品按模板自动发货；魔方财务 / 魔方云绑定上游后，支付时自动在上游开通并交付连接信息（密码平台不长期存储）。</div>' +
             '</div>' +
           '</div>' +
           '<div id="dv-yulan" style="display:' + (d.type === 'yulan' ? 'block' : 'none') + ';margin-top:14px;padding:14px;border-radius:12px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--hair-2)">' +
@@ -303,6 +304,22 @@
               '</div>' +
             '</div>' +
           '</div>' +
+          // v1.4：魔方财务（对接上游）/ 魔方云 —— 绑定上游 + 上游产品
+          '<div id="dv-upstream" style="display:' + (d.type === 'cloud' || d.type === 'yulan' ? 'block' : 'none') + ';margin-top:14px;padding:14px;border-radius:12px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--hair-2)">' +
+            '<div style="font-weight:var(--w-med);margin-bottom:10px">上游对接配置（v1.4）</div>' +
+            '<div class="notice" style="margin-bottom:10px"><span>绑定上游后，支付时自动在上游开通并交付连接信息。'
+            + '魔方财务选类型「魔方财务」+ finance 上游；魔方云选类型「魔方云」+ cloud 上游。未绑定上游时，魔方财务回退旧的全局默认配置。</span></div>' +
+            '<div class="form-grid" style="grid-template-columns:1fr 1fr">' +
+              '<div class="fld"><label for="dv-upstream-id">使用哪个上游</label>' +
+                '<select class="field" id="dv-upstream-id">' + buildUpstreamOptions(d.upstreams || [], d.upstream_id || 0) + '</select>' +
+                '<div class="hint">在「魔方财务 · 上游管理」里创建。留空则不走上游。</div>' +
+              '</div>' +
+              '<div class="fld"><label for="dv-upstream-product">上游产品</label>' +
+                '<select class="field" id="dv-upstream-product"></select>' +
+                '<div class="hint">选中上游后自动列出其产品；也可留空用本商品 ID 开通。</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
           '<div class="fld full" style="margin-top:14px">' +
             '<label>发货字段（虚拟商品）</label>' +
             '<div id="dv-fields">' + rowsHtml + '</div>' +
@@ -319,11 +336,36 @@
             '<button class="btn btn--sm btn--primary" id="dv-save" type="button">保存发货配置</button>' +
           '</div>';
 
-        // 切换类型时显示 / 隐藏欲蓝限购面板
+        // v1.4：上游产品下拉随所选上游联动
+        var upstreamSel = document.getElementById('dv-upstream-id');
+        var upProductSel = document.getElementById('dv-upstream-product');
+        var upstreamsData = d.upstreams || [];
+        var initUpProduct = U.esc(d.upstream_product_id || '');
+        function loadUpProducts(upId, selected) {
+          if (!upProductSel) return;
+          upProductSel.innerHTML = '<option value="">不使用（用本商品 ID 开通）</option>';
+          if (!upId) return;
+          API.upstreamProducts(upId).then(function (r) {
+            (r.items || []).forEach(function (p) {
+              var sel = p.external_id === selected ? ' selected' : '';
+              upProductSel.innerHTML += '<option value="' + U.esc(p.external_id) + '"' + sel + '>' + U.esc(p.name) + '</option>';
+            });
+          }).catch(function () {});
+        }
+        if (upstreamSel) {
+          loadUpProducts(parseInt(upstreamSel.value, 10) || 0, initUpProduct);
+          upstreamSel.addEventListener('change', function () {
+            loadUpProducts(parseInt(upstreamSel.value, 10) || 0, '');
+          });
+        }
+
+        // 切换类型时显示 / 隐藏配置面板
         document.getElementById('dv-type').addEventListener('change', function (e) {
-          var show = e.target.value === 'yulan';
-          var box = document.getElementById('dv-yulan');
-          if (box) box.style.display = show ? 'block' : 'none';
+          var t = e.target.value;
+          var yulanBox = document.getElementById('dv-yulan');
+          if (yulanBox) yulanBox.style.display = (t === 'yulan') ? 'block' : 'none';
+          var upBox = document.getElementById('dv-upstream');
+          if (upBox) upBox.style.display = (t === 'yulan' || t === 'cloud') ? 'block' : 'none';
         });
 
         var list = document.getElementById('dv-fields');
@@ -358,6 +400,13 @@
             if (passRaw !== '') payload.yulan_server_pass = passRaw;   // 只写不读
             payload.yulan_rdp_host = document.getElementById('dv-yulan-rdp').value.trim();
           }
+          // v1.4：上游绑定（魔方财务 / 魔方云都适用）
+          if (type === 'yulan' || type === 'cloud') {
+            var upSel = document.getElementById('dv-upstream-id');
+            var upProdSel = document.getElementById('dv-upstream-product');
+            payload.upstream_id = upSel ? (parseInt(upSel.value, 10) || 0) : 0;
+            payload.upstream_product_id = upProdSel ? upProdSel.value.trim() : '';
+          }
           list.querySelectorAll('.dv-row').forEach(function (row) {
             var label = row.querySelector('[data-dv-label]').value.trim();
             var value = row.querySelector('[data-dv-value]').value;
@@ -375,6 +424,17 @@
       });
     }
   };
+
+  /** v1.4：商品发货配置里的「使用哪个上游」下拉选项 */
+  function buildUpstreamOptions(ups, selectedId) {
+    var html = '<option value="0"' + (selectedId === 0 ? ' selected' : '') + '>不使用上游</option>';
+    (ups || []).forEach(function (u) {
+      var sel = (u.id === selectedId) ? ' selected' : '';
+      var dis = u.enabled ? '' : '（已停用）';
+      html += '<option value="' + u.id + '"' + sel + '>' + U.esc(u.name) + ' · ' + U.esc(u.kind_label) + dis + '</option>';
+    });
+    return html;
+  }
 
   /** v1.3：商品发货配置里的「使用哪个 API」下拉选项 */
   function buildApiOptions(apis, selectedId) {

@@ -52,7 +52,16 @@ final class DeliveryService
 
         $made = 0;
         foreach ($items as $it) {
-            $kind = self::kindOf((string)($it['ptype'] ?? 'physical'));
+            $ptype = (string)($it['ptype'] ?? 'physical');
+            $kind = self::kindOf($ptype);
+
+            // v1.4：魔方云（KVM）商品 —— 支付后调用上游创建云主机并交付连接信息
+            if ($ptype === 'cloud') {
+                if (self::deliverCloud($pdo, $orderId, $orderNo, $it)) {
+                    $made++;
+                }
+                continue;
+            }
 
             // 已存在该 item 的发货记录则跳过（幂等）
             $exists = $pdo->prepare(
@@ -121,8 +130,75 @@ final class DeliveryService
         return match ($type) {
             'virtual' => 'virtual',
             'yulan'   => 'yulan',
+            'cloud'   => 'cloud',
             default   => 'physical',
         };
+    }
+
+    /**
+     * v1.4：支付后为魔方云商品开通云主机，落 cloud_vms + 发货内容。
+     * 幂等：同一 item 已有 cloud 发货记录则跳过。
+     */
+    private static function deliverCloud(PDO $pdo, int $orderId, string $orderNo, array $it): bool
+    {
+        $itemId = (int)$it['item_id'];
+        $productId = (string)$it['product_id'];
+
+        // 取商品的上游配置 / 上游产品 / 订单用户
+        $p = $pdo->prepare('SELECT upstream_id, upstream_product_id FROM products WHERE id = ?');
+        $p->execute([$productId]);
+        $prod = $p->fetch() ?: [];
+        $upstreamId = (int)($prod['upstream_id'] ?? 0);
+        $upProductId = (string)($prod['upstream_product_id'] ?? '');
+        $o = $pdo->prepare('SELECT user_id FROM orders WHERE id = ?');
+        $o->execute([$orderId]);
+        $userId = (int)($o->fetchColumn() ?: 0);
+
+        if ($upstreamId <= 0) {
+            $content = "云主机未配置上游，无法自动开通，请联系客服（订单号 {$orderNo}）";
+            $ok = false;
+            $inst = [];
+        } else {
+            if ($upProductId === '') {
+                $upProductId = $productId;
+            }
+            $res = UpstreamService::provision($upstreamId, $upProductId, [
+                'order_no' => $orderNo,
+                'product_id' => $productId,
+            ]);
+            $ok = (bool)$res['ok'];
+            $inst = $res['instance'] ?? [];
+            $content = (string)$res['detail'];
+            if ($ok) {
+                $lines = [];
+                foreach (['ip' => '连接地址', 'username' => '账号', 'os' => '系统',
+                          'cpu' => 'CPU', 'mem' => '内存', 'region' => '地区'] as $k => $label) {
+                    if (($inst[$k] ?? '') !== '') {
+                        $lines[] = $label . '：' . $inst[$k];
+                    }
+                }
+                if (($inst['password'] ?? '') !== '') {
+                    $lines[] = '密码：' . $inst['password'] . '（仅此一份，请立即保存）';
+                }
+                $lines[] = "（订单号 {$orderNo}，可在用户中心「我的云主机」管理开关机）";
+                $content = implode("\n", $lines);
+
+                CloudVmService::createFromProvision(
+                    $pdo, $orderId, $itemId, $productId, $userId > 0 ? $userId : null,
+                    $upstreamId, (string)($inst['external_id'] ?? ''), $inst
+                );
+            }
+        }
+
+        $pdo->prepare(
+            "INSERT INTO order_deliveries
+             (order_id, order_no, order_item_id, product_id, product_name, kind, content, status, delivered_at, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, 'cloud', ?, ?, datetime('now'), datetime('now'), datetime('now'))"
+        )->execute([
+            $orderId, $orderNo, $itemId, $productId, (string)$it['item_name'],
+            $content, $ok ? 'delivered' : 'pending',
+        ]);
+        return $ok;
     }
 
     /**
@@ -239,7 +315,8 @@ final class DeliveryService
             'kind'         => (string)$r['kind'],
             'kind_label'   => match ((string)$r['kind']) {
                 'virtual' => '虚拟商品',
-                'yulan'   => '欲蓝财务魔方',
+                'yulan'   => '魔方财务（上游）',
+                'cloud'   => '魔方云主机',
                 default   => '实体商品',
             },
             'content'      => (string)$r['content'],
@@ -286,7 +363,7 @@ final class DeliveryService
     {
         $stmt = $pdo->prepare(
             "SELECT COUNT(*) AS total,
-                    SUM(CASE WHEN COALESCE(p.type,'physical') IN ('virtual','yulan') THEN 1 ELSE 0 END) AS virt
+                    SUM(CASE WHEN COALESCE(p.type,'physical') IN ('virtual','yulan','cloud') THEN 1 ELSE 0 END) AS virt
              FROM order_items i LEFT JOIN products p ON p.id = i.product_id
              WHERE i.order_id = ?"
         );

@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS order_deliveries (
   product_id   TEXT NOT NULL DEFAULT '',
   product_name TEXT NOT NULL DEFAULT '',
   kind         TEXT NOT NULL DEFAULT 'virtual'
-               CHECK (kind IN ('virtual', 'physical', 'yulan')),
+               CHECK (kind IN ('virtual', 'physical', 'yulan', 'cloud')),
   content      TEXT NOT NULL DEFAULT '',              -- 多行文本：每行「字段名：值」
   status       TEXT NOT NULL DEFAULT 'delivered'
                CHECK (status IN ('pending', 'delivered', 'revoked')),

@@ -75,14 +75,24 @@ function productsTypeAllowsYulan(PDO $pdo): bool
     return strpos((string)$sql, 'yulan') !== false;
 }
 
-/** order_deliveries.kind 的 CHECK 是否已允许 'yulan'（旧 v5 表只允许 virtual/physical） */
+/** products.type 的 CHECK 是否已允许 v1.4 的 'cloud' */
+function productsTypeAllowsCloud(PDO $pdo): bool
+{
+    $sql = $pdo->query("SELECT sql FROM sqlite_master WHERE type='table' AND name='products'")->fetchColumn();
+    if ($sql === false) {
+        return false;
+    }
+    return strpos((string)$sql, 'cloud') !== false;
+}
+
+/** order_deliveries.kind 的 CHECK 是否已允许 v1.4 的 'cloud'（旧表只允许 virtual/physical/yulan） */
 function deliveriesKindAllowsYulan(PDO $pdo): bool
 {
     $sql = $pdo->query("SELECT sql FROM sqlite_master WHERE type='table' AND name='order_deliveries'")->fetchColumn();
     if ($sql === false) {
-        return true; // 表尚不存在：稍后由 schema_v5.sql 以新结构创建
+        return true; // 表尚不存在：稍后由结构文件以新结构创建
     }
-    return strpos((string)$sql, 'yulan') !== false;
+    return strpos((string)$sql, 'cloud') !== false;
 }
 
 /**
@@ -127,7 +137,7 @@ CREATE TABLE order_deliveries (
   product_id   TEXT NOT NULL DEFAULT '',
   product_name TEXT NOT NULL DEFAULT '',
   kind         TEXT NOT NULL DEFAULT 'virtual'
-               CHECK (kind IN ('virtual', 'physical', 'yulan')),
+               CHECK (kind IN ('virtual', 'physical', 'yulan', 'cloud')),
   content      TEXT NOT NULL DEFAULT '',
   status       TEXT NOT NULL DEFAULT 'delivered'
                CHECK (status IN ('pending', 'delivered', 'revoked')),
@@ -158,17 +168,45 @@ SQL
  */
 function rebuildProductsForYulan(PDO $pdo): void
 {
-    $cols = 'id, sku, name, sub, cat_id, price_cents, was_cents, badge, img, rating, sold, '
-          . 'stock, description, story, type, delivery_template, status, sort, created_at, updated_at';
+    // 目标表列 → 旧表缺列/值为 NULL 时的兜底（null 表示必存在的核心列，直接搬）
+    $spec = [
+        'id' => null, 'sku' => null, 'name' => null, 'sub' => "''", 'cat_id' => null,
+        'price_cents' => null, 'was_cents' => null, 'badge' => "''", 'img' => "''",
+        'rating' => '0', 'sold' => '0', 'stock' => '0', 'description' => "''", 'story' => "''",
+        'flaws' => "''", 'type' => "'physical'", 'delivery_template' => "''",
+        'yulan_account_limit' => '0', 'yulan_ip_restrict' => '0',
+        'yulan_server_ip' => "''", 'yulan_server_port' => "''", 'yulan_server_user' => "''",
+        'yulan_server_pass' => "''", 'yulan_rdp_host' => "''", 'yulan_api_id' => '0',
+        'upstream_id' => '0', 'upstream_product_id' => "''",
+        'status' => "'active'", 'sort' => '0',
+        'created_at' => "datetime('now')", 'updated_at' => "datetime('now')",
+    ];
     // 【重要】legacy_alter_table=ON：默认（OFF）模式下 SQLite 的 RENAME 会把
-    // 所有子表（product_colors / reviews / product_delivery_fields 等）里指向本表
-    // 的外键引用同步改写成旧表名 __products_old，随后旧表被 DROP，子表外键就指向
-    // 了不存在的表——之后任何写 products 的语句都会报
-    // "no such table: main.__products_old"（2026-11-14 线上实锤，保存商品即 500）。
-    // legacy 模式下 RENAME 不改写任何引用，子表继续指向 products（新表随后创建）。
+    // 所有子表外键引用同步改写成旧表名 __products_old，随后旧表被 DROP，子表外键
+    // 就指向不存在的表——之后写 products 会报 "no such table: main.__products_old"。
     $pdo->exec('PRAGMA legacy_alter_table=ON');
     $pdo->exec('PRAGMA foreign_keys=OFF');
     $pdo->exec('ALTER TABLE products RENAME TO __products_old');
+
+    // 重命名后再读旧表实际列（重命名前表名还是 products，读 __products_old 会拿到空）
+    $oldCols = [];
+    foreach ($pdo->query('PRAGMA table_info(__products_old)')->fetchAll() as $c) {
+        $oldCols[strtolower((string)$c['name'])] = true;
+    }
+    $cols = implode(', ', array_keys($spec));
+    $selects = [];
+    foreach ($spec as $col => $fallback) {
+        $exists = isset($oldCols[$col]);
+        if ($exists && $fallback === null) {
+            $selects[] = $col;
+        } elseif ($exists) {
+            $selects[] = "COALESCE({$col}, {$fallback})";
+        } else {
+            $selects[] = "{$fallback} AS {$col}";
+        }
+    }
+    $sel = implode(', ', $selects);
+
     $pdo->exec(<<<'SQL'
 CREATE TABLE products (
   id          TEXT PRIMARY KEY,
@@ -186,7 +224,7 @@ CREATE TABLE products (
   description TEXT NOT NULL DEFAULT '',
   story       TEXT NOT NULL DEFAULT '',
   flaws       TEXT NOT NULL DEFAULT '',
-  type        TEXT NOT NULL DEFAULT 'physical' CHECK (type IN ('virtual', 'physical', 'yulan')),
+  type        TEXT NOT NULL DEFAULT 'physical' CHECK (type IN ('virtual', 'physical', 'yulan', 'cloud')),
   delivery_template TEXT NOT NULL DEFAULT '',
   yulan_account_limit INTEGER NOT NULL DEFAULT 0 CHECK (yulan_account_limit >= 0),
   yulan_ip_restrict   INTEGER NOT NULL DEFAULT 0 CHECK (yulan_ip_restrict IN (0, 1)),
@@ -195,6 +233,9 @@ CREATE TABLE products (
   yulan_server_user TEXT NOT NULL DEFAULT '',
   yulan_server_pass TEXT NOT NULL DEFAULT '',
   yulan_rdp_host    TEXT NOT NULL DEFAULT '',
+  yulan_api_id INTEGER NOT NULL DEFAULT 0,
+  upstream_id INTEGER NOT NULL DEFAULT 0,
+  upstream_product_id TEXT NOT NULL DEFAULT '',
   status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'hidden', 'soldout')),
   sort        INTEGER NOT NULL DEFAULT 0,
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
@@ -202,24 +243,7 @@ CREATE TABLE products (
 )
 SQL
     );
-    // 历史数据的 created_at/updated_at 可能为 NULL（旧库无默认值时），COALESCE 兜底；
-    // 旧库若缺 yulan 各列，按默认值补齐（列顺序与 INSERT 列清单严格一一对应）
-    $pdo->exec("INSERT INTO products ({$cols}, flaws, yulan_account_limit, yulan_ip_restrict,
-                yulan_server_ip, yulan_server_port, yulan_server_user, yulan_server_pass, yulan_rdp_host)
-                SELECT
-                  id, sku, name, sub, cat_id, price_cents, was_cents, badge, img, rating, sold,
-                  stock, description, story, type,
-                  COALESCE(delivery_template, ''),
-                  status, sort,
-                  COALESCE(created_at, datetime('now')),
-                  COALESCE(updated_at, datetime('now')),
-                  COALESCE(flaws, ''),
-                  COALESCE(yulan_account_limit, 0),
-                  COALESCE(yulan_ip_restrict, 0),
-                  COALESCE(yulan_server_ip, ''), COALESCE(yulan_server_port, ''),
-                  COALESCE(yulan_server_user, ''), COALESCE(yulan_server_pass, ''),
-                  COALESCE(yulan_rdp_host, '')
-                FROM __products_old");
+    $pdo->exec("INSERT INTO products ({$cols}) SELECT {$sel} FROM __products_old");
     $pdo->exec('DROP TABLE __products_old');
     $pdo->exec('PRAGMA legacy_alter_table=OFF');
     $pdo->exec('PRAGMA foreign_keys=ON');
@@ -402,8 +426,9 @@ if ($dryRun) {
 
 // ---------- 执行 ----------
 $schemaV5 = file_get_contents(dirname(__DIR__) . '/database/schema_v5.sql');
-if ($schemaV5 === false) {
-    fwrite(STDERR, "读取 database/schema_v5.sql 失败\n");
+$schemaV140 = file_get_contents(dirname(__DIR__) . '/database/schema_v140.sql');
+if ($schemaV5 === false || $schemaV140 === false) {
+    fwrite(STDERR, "读取数据库结构文件失败\n");
     exit(1);
 }
 
@@ -415,14 +440,15 @@ try {
     $needRebuildProducts   = false;
     $needRebuildDeliveries = false;
 
-    // v5 表（CREATE TABLE IF NOT EXISTS，天然幂等）
+    // v5 + v1.4 表（CREATE TABLE IF NOT EXISTS，天然幂等）
     $pdo->exec($schemaV5);
+    $pdo->exec($schemaV140);
 
     // products 新列
     if (!columnExists($pdo, 'products', 'type')) {
         $pdo->exec("ALTER TABLE products ADD COLUMN type TEXT NOT NULL DEFAULT 'physical' CHECK (type IN ('virtual','physical','yulan'))");
-    } elseif (!productsTypeAllowsYulan($pdo)) {
-        // 旧库：type 列已存在但 CHECK 只允许 virtual/physical，需重建表以放开 yulan
+    } else    if (!productsTypeAllowsYulan($pdo) || !productsTypeAllowsCloud($pdo)) {
+        // 旧库：type 列 CHECK 未放开 yulan 或 v1.4 的 cloud，需重建表
         $needRebuildProducts = true;
     }
     if (!columnExists($pdo, 'products', 'delivery_template')) {
@@ -455,6 +481,13 @@ try {
     // v1.3：商品绑定财务魔方 API（0=不使用，回退商品级/全局默认）
     if (!columnExists($pdo, 'products', 'yulan_api_id')) {
         $pdo->exec("ALTER TABLE products ADD COLUMN yulan_api_id INTEGER NOT NULL DEFAULT 0");
+    }
+    // v1.4：商品绑定上游 / 上游产品
+    if (!columnExists($pdo, 'products', 'upstream_id')) {
+        $pdo->exec("ALTER TABLE products ADD COLUMN upstream_id INTEGER NOT NULL DEFAULT 0");
+    }
+    if (!columnExists($pdo, 'products', 'upstream_product_id')) {
+        $pdo->exec("ALTER TABLE products ADD COLUMN upstream_product_id TEXT NOT NULL DEFAULT ''");
     }
 
     // yulan_accounts 表

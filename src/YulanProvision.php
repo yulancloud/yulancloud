@@ -51,7 +51,7 @@ final class YulanProvision
             $stmt = $pdo->prepare(
                 'SELECT yulan_account_limit, yulan_ip_restrict,
                         yulan_server_ip, yulan_server_port, yulan_server_user, yulan_server_pass, yulan_rdp_host,
-                        yulan_api_id
+                        yulan_api_id, upstream_id, upstream_product_id
                  FROM products WHERE id = ?'
             );
             $stmt->execute([$productId]);
@@ -62,22 +62,62 @@ final class YulanProvision
             self::checkLimit($pdo, $userId, $ipHash, $productId, $qty, $limit, $ipr);
             self::assertAccountFree($pdo, $productId, $account);
 
-            // 向 Windows APP 下达建号命令（v1.3：商品绑定的 API > 商品级配置 > 全局设置）
-            $itemCfg = YulanConnector::resolveConfig($cfg, $p ?: []);
-            $res = YulanConnector::createUser($itemCfg, $orderNo, $productId, $account, $password);
-            $status = $res['ok'] ? 'created' : 'failed';
+            $upstreamId = $p ? (int)($p['upstream_id'] ?? 0) : 0;
+            $status = 'failed';
+            $role = 'user';
+            $detail = '';
+
+            if ($upstreamId > 0 && class_exists('UpstreamService')) {
+                // v1.4：绑定了上游 → 对接上游开通（魔方财务对接上游模式）
+                $upProductId = $p ? (string)($p['upstream_product_id'] ?? '') : '';
+                if ($upProductId === '') {
+                    $upProductId = $productId; // 未指定上游产品时用本商品 ID
+                }
+                $res = UpstreamService::provision($upstreamId, $upProductId, [
+                    'account' => $account,
+                    'order_no' => $orderNo,
+                    'qty' => $qty,
+                ]);
+                $status = $res['ok'] ? 'created' : 'failed';
+                $detail = (string)$res['detail'];
+                // 上游交付信息（IP / 一次性密码）写入发货内容，平台不长期持有明文密码
+                if ($res['ok'] && !empty($res['instance'])) {
+                    $inst = $res['instance'];
+                    $lines = [];
+                    if (($inst['ip'] ?? '') !== '') {
+                        $lines[] = '连接地址：' . $inst['ip'];
+                    }
+                    $lines[] = '账号：' . ($inst['username'] ?? $account);
+                    if (($inst['password'] ?? '') !== '') {
+                        $lines[] = '密码：' . $inst['password'] . '（仅此一份，请立即保存）';
+                    }
+                    $pdo->prepare(
+                        "INSERT INTO order_deliveries
+                         (order_id, order_no, order_item_id, product_id, product_name, kind, content, status, delivered_at, created_at, updated_at)
+                         VALUES (?, ?, ?, ?, (SELECT name FROM products WHERE id = ?), 'yulan', ?, 'delivered', datetime('now'), datetime('now'), datetime('now'))"
+                    )->execute([
+                        $orderId, $orderNo, $itemId, $productId, $productId, implode("\n", $lines),
+                    ]);
+                }
+            } else {
+                // 兼容存量：未绑定上游时回退旧的 Windows APP 建号链路
+                $itemCfg = YulanConnector::resolveConfig($cfg, $p ?: []);
+                $res = YulanConnector::createUser($itemCfg, $orderNo, $productId, $account, $password);
+                $status = $res['ok'] ? 'created' : 'failed';
+                $role = $res['role'];
+                $detail = (string)$res['detail'];
+            }
 
             $pdo->prepare(
                 "INSERT INTO yulan_accounts
                  (order_id, order_item_id, product_id, account, role, status, detail, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))"
             )->execute([
-                $orderId, $itemId, $productId, $account,
-                $res['role'], $status, (string)$res['detail'],
+                $orderId, $itemId, $productId, $account, $role, $status, $detail,
             ]);
 
-            if (!$res['ok']) {
-                Response::fail('yulan_provision_failed', '欲蓝账号创建失败：' . $res['detail'], 409);
+            if ($status !== 'created') {
+                Response::fail('yulan_provision_failed', '开通失败：' . $detail, 409);
             }
             $made++;
         }

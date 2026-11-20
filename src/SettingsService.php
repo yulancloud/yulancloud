@@ -86,8 +86,11 @@ final class SettingsService
         'yulan_server_port' => ['default' => '8321', 'max' => 6], // APP 监听端口
         'yulan_server_user' => ['default' => '', 'max' => 64],   // 连接鉴权账号（APP 侧校验）
         'yulan_server_pass' => ['default' => '', 'max' => 128],  // 连接鉴权口令（只写不读）
-        'yulan_rdp_host'    => ['default' => '', 'max' => 128],  // 交付给用户的「连接地址」（留空则用 yulan_server_ip）
-        'yulan_mock'        => ['default' => '0', 'max' => 1],   // 1 = 模拟模式（不真连 APP，写入队列文件，便于测试）
+        'yulan_rdp_host'    => ['default' => '', 'max' => 128],  // 兼容存量：旧版交付连接地址
+        'yulan_mock'        => ['default' => '0', 'max' => 1],   // 兼容存量：旧版模拟开关
+
+        // ---------- v1.4：对接上游（魔方财务 / 魔方云）模拟模式 ----------
+        'upstream_mock'     => ['default' => '0', 'max' => 1],   // 1 = 模拟（不真连上游，写队列文件并返回演示交付信息，便于测试）
 
         // ---------- 虚拟商品自动发货：逐商品配置 ----------
         // 每个虚拟商品的发货内容存于各自商品的 delivery_template / product_delivery_fields，

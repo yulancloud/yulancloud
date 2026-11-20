@@ -115,6 +115,9 @@ require_once $SRC . '/SettingsService.php';
 require_once $SRC . '/YulanConnector.php';
 require_once $SRC . '/YulanProvision.php';
 require_once $SRC . '/YulanApiService.php';   // v1.3 财务魔方 API 多服务器配置
+require_once $SRC . '/UpstreamService.php';   // v1.4 对接上游（魔方财务/魔方云）
+require_once $SRC . '/CloudVmService.php';    // v1.4 云主机实例
+require_once $SRC . '/TicketService.php';     // v1.4 工单系统
 require_once $SRC . '/UpdateService.php';     // v1.3 在线更新（保留设置与主页设计）
 require_once $SRC . '/ExtensionService.php';   // v1.2 后台主题 / 插件上传安装
 require_once $SRC . '/PluginRuntime.php';      // v1.2.2 插件运行时（所有功能由插件实现）
@@ -195,9 +198,9 @@ switch (true) {
             'status' => 'up',
             'time' => date('c'),
             'installed' => $installed,
-            'version' => '1.3.0',
+            'version' => '1.4.0',
             // 构建号：升级后用 curl /api/health 看这里即可确认服务器跑的是不是新代码
-            'build' => '20261120a',
+            'build' => '20261120b',
             'php' => PHP_VERSION,
         ]);
 
@@ -251,7 +254,7 @@ switch (true) {
         Response::ok([
             'plugins' => PluginRuntime::ids(),
             'assets'  => $slots,
-            'build'   => '20261120a',
+            'build'   => '20261120b',
             'diag'    => $diag,
         ]);
 
@@ -749,6 +752,42 @@ switch (true) {
         }
         Response::ok(['message' => $r['message']]);
 
+    // ================= v1.4 工单（用户） =================
+    case $path === '/api/console/tickets' && $method === 'GET':
+        $u = UserAuth::require();
+        Response::ok(TicketService::listForUser((int)$u['id'], $_GET));
+
+    case $path === '/api/console/tickets' && $method === 'POST':
+        $u = UserAuth::require();
+        $body = readJsonBody();
+        $name = (string)($u['display_name'] ?? $u['username'] ?? '');
+        Response::ok(TicketService::create((int)$u['id'], $name, $body));
+
+    case preg_match('#^/api/console/tickets/(\d+)$#', $path, $m) === 1 && $method === 'GET':
+        $u = UserAuth::require();
+        Response::ok(TicketService::detailForUser((int)$u['id'], (int)$m[1]));
+
+    case preg_match('#^/api/console/tickets/(\d+)/reply$#', $path, $m) === 1 && $method === 'POST':
+        $u = UserAuth::require();
+        $body = readJsonBody();
+        Response::ok(TicketService::replyAsUser((int)$u['id'], (int)$m[1], (string)($body['body'] ?? '')));
+
+    case preg_match('#^/api/console/tickets/(\d+)/close$#', $path, $m) === 1 && $method === 'POST':
+        $u = UserAuth::require();
+        Response::ok(TicketService::closeAsUser((int)$u['id'], (int)$m[1]));
+
+    // ================= v1.4 我的云主机（用户） =================
+    case $path === '/api/console/cloud-vms' && $method === 'GET':
+        $u = UserAuth::require();
+        Response::ok(CloudVmService::listForUser((int)$u['id']));
+
+    case preg_match('#^/api/console/cloud-vms/(\d+)/action$#', $path, $m) === 1 && $method === 'POST':
+        $u = UserAuth::require();
+        $body = readJsonBody();
+        $action = (string)($body['action'] ?? '');
+        $opts = is_array($body['opts'] ?? null) ? $body['opts'] : [];
+        Response::ok(CloudVmService::actionForUser((int)$u['id'], (int)$m[1], $action, $opts));
+
     // ================= 控制台 / 我的欲蓝财务魔方商品 =================
     // 全部强制登录 + 归属校验（ConsoleService 内 JOIN orders 按 user_id 过滤）。
     // 改号是敏感写操作，单独用更严的限流，防刷。
@@ -1023,6 +1062,92 @@ switch (true) {
         Audit::log($u['id'], $u['username'], 'yulan_api_delete', $m[1], '');
         Response::ok($r);
 
+    // ================= v1.4 上游（魔方财务对接上游 / 魔方云） =================
+    case $path === '/api/admin/upstreams' && $method === 'GET':
+        AdminAuth::require();
+        $kind = isset($_GET['kind']) ? (string)$_GET['kind'] : null;
+        Response::ok(['items' => UpstreamService::list($kind)]);
+
+    case $path === '/api/admin/upstreams' && $method === 'POST':
+        $u = AdminAuth::require();
+        $body = readJsonBody();
+        $r = UpstreamService::create($body);
+        Audit::log($u['id'], $u['username'], 'upstream_create', (string)$r['id'], $r['name']);
+        Response::ok(['item' => $r]);
+
+    case $path === '/api/admin/upstreams/test' && $method === 'POST':
+        AdminAuth::require();
+        $body = readJsonBody();
+        Response::ok(UpstreamService::testConnection($body));
+
+    case preg_match('#^/api/admin/upstreams/(\d+)$#', $path, $m) === 1 && $method === 'PUT':
+        $u = AdminAuth::require();
+        $body = readJsonBody();
+        $r = UpstreamService::update((int)$m[1], $body);
+        Audit::log($u['id'], $u['username'], 'upstream_update', $m[1], $r['name']);
+        Response::ok(['item' => $r]);
+
+    case preg_match('#^/api/admin/upstreams/(\d+)$#', $path, $m) === 1 && $method === 'DELETE':
+        $u = AdminAuth::require();
+        $r = UpstreamService::delete((int)$m[1]);
+        Audit::log($u['id'], $u['username'], 'upstream_delete', $m[1], '');
+        Response::ok($r);
+
+    case preg_match('#^/api/admin/upstreams/(\d+)/products$#', $path, $m) === 1 && $method === 'GET':
+        AdminAuth::require();
+        Response::ok(['items' => UpstreamService::products((int)$m[1])]);
+
+    case preg_match('#^/api/admin/upstreams/(\d+)/products/sync$#', $path, $m) === 1 && $method === 'POST':
+        $u = AdminAuth::require();
+        $r = UpstreamService::syncProducts((int)$m[1]);
+        Audit::log($u['id'], $u['username'], 'upstream_sync', $m[1], '同步 ' . $r['count'] . ' 个产品');
+        Response::ok($r);
+
+    case preg_match('#^/api/admin/upstream-products/(\d+)$#', $path, $m) === 1 && $method === 'PUT':
+        $u = AdminAuth::require();
+        $body = readJsonBody();
+        $upId = (int)($body['upstream_id'] ?? 0);
+        $r = UpstreamService::saveProduct($upId, (int)$m[1], $body);
+        Audit::log($u['id'], $u['username'], 'upstream_product_update', $m[1], '');
+        Response::ok($r);
+
+    // v1.4：云主机实例（后台）
+    case $path === '/api/admin/cloud-vms' && $method === 'GET':
+        AdminAuth::require();
+        Response::ok(CloudVmService::listForAdmin($_GET));
+
+    case preg_match('#^/api/admin/cloud-vms/(\d+)/action$#', $path, $m) === 1 && $method === 'POST':
+        $u = AdminAuth::require();
+        $body = readJsonBody();
+        $action = (string)($body['action'] ?? '');
+        $opts = is_array($body['opts'] ?? null) ? $body['opts'] : [];
+        $r = CloudVmService::actionForAdmin((int)$m[1], $action, $opts);
+        Audit::log($u['id'], $u['username'], 'cloud_vm_action', $m[1], $action);
+        Response::ok($r);
+
+    // v1.4：工单（后台）
+    case $path === '/api/admin/tickets' && $method === 'GET':
+        AdminAuth::require();
+        Response::ok(TicketService::listForAdmin($_GET));
+
+    case preg_match('#^/api/admin/tickets/(\d+)$#', $path, $m) === 1 && $method === 'GET':
+        AdminAuth::require();
+        Response::ok(TicketService::detailForAdmin((int)$m[1]));
+
+    case preg_match('#^/api/admin/tickets/(\d+)/reply$#', $path, $m) === 1 && $method === 'POST':
+        $u = AdminAuth::require();
+        $body = readJsonBody();
+        $r = TicketService::replyAsAdmin((int)$m[1], (string)$u['username'], (string)($body['body'] ?? ''));
+        Audit::log($u['id'], $u['username'], 'ticket_reply', $m[1], '');
+        Response::ok(['item' => $r]);
+
+    case preg_match('#^/api/admin/tickets/(\d+)/status$#', $path, $m) === 1 && $method === 'POST':
+        $u = AdminAuth::require();
+        $body = readJsonBody();
+        $r = TicketService::setStatus((int)$m[1], (string)($body['status'] ?? ''));
+        Audit::log($u['id'], $u['username'], 'ticket_status', $m[1], (string)($body['status'] ?? ''));
+        Response::ok(['item' => $r]);
+
     // ================= v1.3 在线更新 =================
     case $path === '/api/admin/update/check' && $method === 'GET':
         AdminAuth::require();
@@ -1259,10 +1384,13 @@ switch (true) {
             '/api/admin/audit', '/api/admin/settings', '/api/admin/settings/reset',
             '/api/admin/users',
             '/api/admin/yulan-apis', '/api/admin/update/check', '/api/admin/update/run',
+            '/api/admin/upstreams', '/api/admin/upstreams/test', '/api/admin/cloud-vms',
+            '/api/admin/tickets',
             '/api/console/register', '/api/console/login', '/api/console/logout',
             '/api/console/me', '/api/console/overview', '/api/console/orders',
             '/api/console/balance/ledger', '/api/console/balance/recharge',
             '/api/console/balance/recharges', '/api/console/profile', '/api/console/password',
+            '/api/console/tickets', '/api/console/cloud-vms',
         ];
         $isKnown = in_array($path, $known, true)
             || preg_match('#^/api/(products|orders)/[^/]+$#', $path) === 1
@@ -1276,12 +1404,19 @@ switch (true) {
             || preg_match('#^/api/admin/users/\d+$#', $path) === 1
             || preg_match('#^/api/admin/users/\d+/(status|reset-password|balance|ledger)$#', $path) === 1
             || preg_match('#^/api/admin/yulan-apis/\d+$#', $path) === 1
+            || preg_match('#^/api/admin/upstreams/\d+$#', $path) === 1
+            || preg_match('#^/api/admin/upstreams/\d+/products(/sync)?$#', $path) === 1
+            || preg_match('#^/api/admin/upstream-products/\d+$#', $path) === 1
+            || preg_match('#^/api/admin/cloud-vms/\d+/action$#', $path) === 1
+            || preg_match('#^/api/admin/tickets/\d+(/(reply|status))?$#', $path) === 1
             || preg_match('#^/api/admin/deliveries/\d+$#', $path) === 1
             || preg_match('#^/api/admin/extensions/(theme|plugin)/[a-z0-9-]+(/activate|/toggle)?$#', $path) === 1
             || preg_match('#^/api/plugin-asset/[a-z0-9-]+/.+$#', $path) === 1
             || PluginRuntime::isDeclaredPath($path)   // v1.2.2 插件声明的路由（方法不对时给 405）
             || preg_match('#^/api/console/orders/[^/]+$#', $path) === 1
-            || preg_match('#^/api/console/orders/[^/]+/(pay|pay-balance)$#', $path) === 1;
+            || preg_match('#^/api/console/orders/[^/]+/(pay|pay-balance)$#', $path) === 1
+            || preg_match('#^/api/console/tickets/\d+(/(reply|close))?$#', $path) === 1
+            || preg_match('#^/api/console/cloud-vms/\d+/action$#', $path) === 1;
         if ($isKnown) {
             header('Allow: GET, POST, PUT, DELETE, OPTIONS');
             Response::fail('method_not_allowed', '请求方法不被允许', 405);

@@ -243,8 +243,8 @@ final class AdminService
         $type = null;
         if (array_key_exists('type', $in)) {
             $type = (string)($in['type'] ?? 'physical');
-            if (!in_array($type, ['virtual', 'physical', 'yulan'], true)) {
-                Response::fail('invalid_type', '商品类型只能是实体商品 / 虚拟商品 / 欲蓝财务魔方', 400);
+            if (!in_array($type, ['virtual', 'physical', 'yulan', 'cloud'], true)) {
+                Response::fail('invalid_type', '商品类型不合法', 400);
             }
         }
         $rating = (float)($in['rating'] ?? 0);
@@ -1172,7 +1172,7 @@ final class AdminService
         $stmt = $pdo->prepare(
             'SELECT id, name, type, delivery_template, yulan_account_limit, yulan_ip_restrict,
                     yulan_server_ip, yulan_server_port, yulan_server_user, yulan_rdp_host,
-                    yulan_server_pass, yulan_api_id
+                    yulan_server_pass, yulan_api_id, upstream_id, upstream_product_id
              FROM products WHERE id = ?'
         );
         $stmt->execute([$productId]);
@@ -1199,6 +1199,10 @@ final class AdminService
             'yulan_server_pass_set'  => ((string)$p['yulan_server_pass']) !== '',
             'yulan_api_id'           => (int)($p['yulan_api_id'] ?? 0),
             'apis'                   => class_exists('YulanApiService') ? YulanApiService::list() : [],
+            // v1.4：上游绑定（魔方财务对接上游 / 魔方云）
+            'upstream_id'            => (int)($p['upstream_id'] ?? 0),
+            'upstream_product_id'    => (string)($p['upstream_product_id'] ?? ''),
+            'upstreams'              => class_exists('UpstreamService') ? UpstreamService::list() : [],
             'fields'              => array_map(static fn($r) => [
                 'label' => (string)$r['label'],
                 'value' => (string)$r['value'],
@@ -1219,8 +1223,8 @@ final class AdminService
         }
 
         $type = (string)($in['type'] ?? 'physical');
-        if (!in_array($type, ['virtual', 'physical', 'yulan'], true)) {
-            Response::fail('invalid_type', '商品类型只能是 virtual / physical / yulan', 400);
+        if (!in_array($type, ['virtual', 'physical', 'yulan', 'cloud'], true)) {
+            Response::fail('invalid_type', '商品类型不合法', 400);
         }
 
         $template = (string)($in['template'] ?? '');
@@ -1277,6 +1281,16 @@ final class AdminService
                 Response::fail('invalid_api', '选择的财务魔方 API 不存在', 400);
             }
         }
+        // v1.4：商品绑定的上游（魔方财务/魔方云）与上游产品
+        $upstreamId = self::intVal($in['upstream_id'] ?? 0, 0, 1000000, '上游');
+        $upstreamProductId = self::text($in['upstream_product_id'] ?? '', 0, 128, '上游产品');
+        if ($upstreamId > 0 && class_exists('UpstreamService')) {
+            try {
+                UpstreamService::get($upstreamId);
+            } catch (Throwable $e) {
+                Response::fail('invalid_upstream', '选择的上游不存在', 400);
+            }
+        }
 
         // v5.5：商品级欲蓝服务器配置（留空 = 用全局默认；口令只写不读）
         $srvIp   = self::text($in['yulan_server_ip'] ?? '', 0, 64, '欲蓝服务器 IP');
@@ -1308,15 +1322,16 @@ final class AdminService
 
         Db::tx(function (PDO $pdo) use (
             $productId, $type, $template, $clean, $limit, $ipr, $apiId,
-            $srvIp, $srvPort, $srvUser, $srvRdpHost, $srvPassSet, $srvPass
+            $srvIp, $srvPort, $srvUser, $srvRdpHost, $srvPassSet, $srvPass,
+            $upstreamId, $upstreamProductId
         ): void {
             $pdo->prepare(
                 "UPDATE products
                  SET type = ?, delivery_template = ?, yulan_account_limit = ?, yulan_ip_restrict = ?,
                      yulan_server_ip = ?, yulan_server_port = ?, yulan_server_user = ?, yulan_rdp_host = ?,
-                     yulan_api_id = ?, updated_at = datetime('now')
+                     yulan_api_id = ?, upstream_id = ?, upstream_product_id = ?, updated_at = datetime('now')
                  WHERE id = ?"
-            )->execute([$type, $template, $limit, $ipr, $srvIp, $srvPort, $srvUser, $srvRdpHost, $apiId, $productId]);
+            )->execute([$type, $template, $limit, $ipr, $srvIp, $srvPort, $srvUser, $srvRdpHost, $apiId, $upstreamId, $upstreamProductId, $productId]);
             // 口令仅在明确提交时更新（只写不读，绝不回显）
             if ($srvPassSet) {
                 $pdo->prepare("UPDATE products SET yulan_server_pass = ?, updated_at = datetime('now') WHERE id = ?")
@@ -1341,6 +1356,8 @@ final class AdminService
             'yulan_server_user'      => $srvUser,
             'yulan_rdp_host'         => $srvRdpHost,
             'yulan_server_pass_set'  => true,
+            'upstream_id'            => $upstreamId,
+            'upstream_product_id'    => $upstreamProductId,
         ];
     }
 

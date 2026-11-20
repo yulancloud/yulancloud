@@ -40,9 +40,10 @@ CREATE TABLE IF NOT EXISTS products (
   -- 后台「编辑商品」里可逐件填写，不再写死在 product.html 的演示文案里。
   flaws       TEXT NOT NULL DEFAULT '',
   -- v5：商品类型。virtual=虚拟商品（支付后按模板自动发货），physical=实体商品（走待发货流程）
-  -- v5.5：新增 yulan=欲蓝财务魔方商品（下单即在 Windows 服务器创建账号，按「连接地址+账号」交付）
+  -- v5.5：yulan=魔方财务（下单对接上游开通，按「连接地址+账号」交付）
+  -- v1.4：cloud=魔方云 KVM 云服务器（下单在上游创建云主机）
   type        TEXT NOT NULL DEFAULT 'physical'
-              CHECK (type IN ('virtual', 'physical', 'yulan')),
+              CHECK (type IN ('virtual', 'physical', 'yulan', 'cloud')),
   -- v5：发货内容模板（多行文本，每行「字段名：取值」；取值支持 {order_no} {date} 占位符）
   delivery_template TEXT NOT NULL DEFAULT '',
   -- v5.5：欲蓝财务魔方专属配置
@@ -59,6 +60,10 @@ CREATE TABLE IF NOT EXISTS products (
   yulan_rdp_host    TEXT NOT NULL DEFAULT '',
   -- v1.3：商品绑定的「财务魔方 API」ID（指向 yulan_apis.id；0=不使用，回退商品级/全局默认）
   yulan_api_id INTEGER NOT NULL DEFAULT 0,
+  -- v1.4：商品绑定的上游 ID（指向 upstreams.id；0=不使用）
+  upstream_id  INTEGER NOT NULL DEFAULT 0,
+  -- v1.4：商品绑定的上游产品 ID（指向 upstream_products.external_id 或本系统 id）
+  upstream_product_id TEXT NOT NULL DEFAULT '',
   status      TEXT NOT NULL DEFAULT 'active'
               CHECK (status IN ('active', 'hidden', 'soldout')),
   sort        INTEGER NOT NULL DEFAULT 0,

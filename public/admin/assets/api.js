@@ -213,6 +213,26 @@
       return request('DELETE', '/yulan-apis/' + id + (force ? '?force=1' : ''));
     },
 
+    /* ---- v1.4：上游（魔方财务对接上游 / 魔方云） ---- */
+    upstreams: function (kind) { return request('GET', '/upstreams' + (kind ? '?kind=' + encodeURIComponent(kind) : '')); },
+    createUpstream: function (item) { return request('POST', '/upstreams', item); },
+    updateUpstream: function (id, item) { return request('PUT', '/upstreams/' + id, item); },
+    deleteUpstream: function (id) { return request('DELETE', '/upstreams/' + id); },
+    testUpstream: function (item) { return request('POST', '/upstreams/test', item); },
+    upstreamProducts: function (id) { return request('GET', '/upstreams/' + id + '/products'); },
+    syncUpstreamProducts: function (id) { return request('POST', '/upstreams/' + id + '/products/sync'); },
+    saveUpstreamProduct: function (id, item) { return request('PUT', '/upstream-products/' + id, item); },
+
+    /* ---- v1.4：云主机实例 ---- */
+    cloudVms: function (q) { return request('GET', '/cloud-vms' + qs(q)); },
+    cloudVmAction: function (id, action, opts) { return request('POST', '/cloud-vms/' + id + '/action', { action: action, opts: opts || {} }); },
+
+    /* ---- v1.4：工单 ---- */
+    tickets: function (q) { return request('GET', '/tickets' + qs(q)); },
+    ticket: function (id) { return request('GET', '/tickets/' + id); },
+    ticketReply: function (id, body) { return request('POST', '/tickets/' + id + '/reply', { body: body }); },
+    ticketStatus: function (id, status) { return request('POST', '/tickets/' + id + '/status', { status: status }); },
+
     /* ---- v1.3：在线更新 ---- */
     updateCheck: function () { return request('GET', '/update/check'); },
     updateRun: function (opts) { return request('POST', '/update/run', opts || {}); },

@@ -149,9 +149,10 @@
             '<select class="field" id="f-type">' +
               '<option value="physical"' + (!p || p.type === 'physical' ? ' selected' : '') + '>实体商品</option>' +
               '<option value="virtual"' + (p && p.type === 'virtual' ? ' selected' : '') + '>虚拟商品</option>' +
-              '<option value="yulan"' + (p && p.type === 'yulan' ? ' selected' : '') + '>欲蓝财务魔方</option>' +
+              '<option value="yulan"' + (p && p.type === 'yulan' ? ' selected' : '') + '>魔方财务（对接上游）</option>' +
+              '<option value="cloud"' + (p && p.type === 'cloud' ? ' selected' : '') + '>魔方云（KVM 云服务器）</option>' +
             '</select>' +
-            '<div class="hint">虚拟商品自动发货；欲蓝财务魔方下单即创建 Windows 账号（在「发货配置」里设限购与服务器）。</div></div>' +
+            '<div class="hint">虚拟商品自动发货；魔方财务 / 魔方云在「发货配置」里绑定上游并选上游产品，支付后自动在上游开通。</div></div>' +
           '<div class="fld"><label for="f-status">状态</label>' +
             '<select class="field" id="f-status">' +
               '<option value="active"' + (p && p.status === 'active' ? ' selected' : '') + '>在售</option>' +

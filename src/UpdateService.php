@@ -29,8 +29,8 @@ final class UpdateService
     private const RELEASE_HOST = 'github.com';
 
     /** 当前版本（v1.3） */
-    private const CURRENT_VERSION = '1.3.0';
-    private const CURRENT_BUILD   = '20261120a';
+    private const CURRENT_VERSION = '1.4.0';
+    private const CURRENT_BUILD   = '20261120b';
 
     /** 升级时“完全保留”的顶层路径前缀 */
     private const PRESERVE_PREFIX = [

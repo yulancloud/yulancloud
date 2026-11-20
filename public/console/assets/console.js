@@ -39,7 +39,11 @@
     recharges: [],
     rechargeAmount: 10000,
     yulan: [],
-    yulanDetail: null
+    yulanDetail: null,
+    // v1.4
+    tickets: [],
+    ticketDetail: null,
+    cloudVms: []
   };
 
   /* ---------- 工具 ---------- */
@@ -297,6 +301,8 @@
     var views = [
       ['orders', '我的订单'],
       ['yulan', '控制台'],
+      ['cloud', '我的云主机'],
+      ['tickets', '工单'],
       ['balance', '余额与充值'],
       ['profile', '账户设置']
     ];
@@ -315,6 +321,8 @@
 
     if (state.view === 'orders') renderOrders(body);
     else if (state.view === 'yulan') renderYulan(body);
+    else if (state.view === 'cloud') renderCloudVms(body);
+    else if (state.view === 'tickets') renderTickets(body);
     else if (state.view === 'balance') renderBalance(body);
     else renderProfile(body);
   }
@@ -753,6 +761,235 @@
    * 详情里可修改「登录用户名」和「密码」：网站不存储密码，改密由 Windows
    * APP 以管理员权限强制重置（无需旧密码）。所有内容一律用 textContent。
    * ============================================================= */
+  /* =============================================================
+   * v1.4：我的云主机
+   * ============================================================= */
+  function vmStatusBadge(s) {
+    var map = { running: '运行中', stopped: '已停止', pending: '待开通', creating: '开通中', failed: '失败', cancelled: '已取消' };
+    return el('span', 'badge badge--' + (s === 'running' ? 'done' : (s === 'failed' ? 'warn' : '')), map[s] || s);
+  }
+  function renderCloudVms(root) {
+    var head = el('div', 'sec-title');
+    head.appendChild(el('h2', '', '我的云主机'));
+    root.appendChild(head);
+    var tip = el('div', 'hint');
+    tip.textContent = '购买魔方云商品并支付后，云主机实例会自动出现在这里。可进行开机 / 关机 / 重启 / 重置密码等操作。';
+    tip.style.marginBottom = '14px';
+    root.appendChild(tip);
+
+    var items = state.cloudVms || [];
+    if (!items.length) {
+      root.appendChild(el('div', 'empty-box', '暂无云主机实例'));
+      return;
+    }
+    items.forEach(function (v) {
+      var card = el('div', 'order-card');
+      var top = el('div', 'order-card__top');
+      top.appendChild(el('strong', '', v.instance_name || v.external_id || ('#' + v.id)));
+      top.appendChild(vmStatusBadge(v.status));
+      card.appendChild(top);
+
+      var spec = [v.cpu, v.mem, v.disk, v.bandwidth].filter(Boolean).join(' / ');
+      var lines = [
+        ['IP 地址', v.ip || '—'],
+        ['操作系统', v.os || '—'],
+        ['配置', spec || '—'],
+        ['地区', v.region || '—'],
+        ['订单', v.order_no || '—'],
+      ];
+      var meta = el('div', 'kv');
+      lines.forEach(function (ln) {
+        var row = el('div', 'kv__row');
+        row.appendChild(el('span', 'kv__k', ln[0]));
+        row.appendChild(el('span', 'kv__v', ln[1]));
+        meta.appendChild(row);
+      });
+      card.appendChild(meta);
+
+      var acts = el('div', 'order-card__actions');
+      [['start', '开机'], ['stop', '关机'], ['restart', '重启'], ['reset-password', '重置密码']].forEach(function (a) {
+        var b = el('button', 'btn btn--sm btn--ghost', a[1]);
+        b.type = 'button';
+        b.onclick = function () { vmAction(v.id, a[0]); };
+        acts.appendChild(b);
+      });
+      card.appendChild(acts);
+      root.appendChild(card);
+    });
+  }
+  function vmAction(vmId, action) {
+    var opts = {};
+    if (action === 'reset-password') {
+      var np = window.prompt('输入新密码（留空由系统生成）：', '');
+      if (np === null) return;
+      if (np) opts.password = np;
+    }
+    if (action !== 'reset-password' && !window.confirm('确定执行「' + action + '」？')) return;
+    request('POST', '/console/cloud-vms/' + vmId + '/action', { action: action, opts: opts }).then(function (r) {
+      toast(r.detail || '操作成功');
+      loadCloudVms().then(function () { renderShell(); });
+    }).catch(function (e) { toast(e.message, true); });
+  }
+
+  /* =============================================================
+   * v1.4：工单
+   * ============================================================= */
+  function ticketStatusBadge(s) {
+    var map = { open: '待处理', processing: '处理中', replied: '已回复', closed: '已关闭' };
+    return el('span', 'badge badge--' + (s === 'replied' || s === 'closed' ? 'done' : 'warn'), map[s] || s);
+  }
+  function renderTickets(root) {
+    if (state.ticketDetail) return renderTicketDetail(root);
+    var head = el('div', 'sec-title');
+    head.appendChild(el('h2', '', '工单'));
+    var add = el('button', 'btn btn--primary', '提交工单');
+    add.type = 'button';
+    add.onclick = function () { state.ticketDetail = { _new: true }; renderShell(); };
+    head.appendChild(add);
+    root.appendChild(head);
+
+    var items = state.tickets || [];
+    if (!items.length) {
+      root.appendChild(el('div', 'empty-box', '还没有工单，遇到问题可点「提交工单」。'));
+      return;
+    }
+    items.forEach(function (t) {
+      var card = el('div', 'order-card');
+      var top = el('div', 'order-card__top');
+      top.appendChild(el('strong', '', t.title));
+      top.appendChild(ticketStatusBadge(t.status));
+      card.appendChild(top);
+      var meta = el('div', 'hint');
+      meta.textContent = t.ticket_no + ' · ' + t.category_label + ' · ' + fmtTime(t.created_at);
+      card.appendChild(meta);
+      var acts = el('div', 'order-card__actions');
+      var view = el('button', 'btn btn--sm btn--ghost', '查看详情');
+      view.type = 'button';
+      view.onclick = function () {
+        request('GET', '/console/tickets/' + t.id).then(function (d) {
+          state.ticketDetail = d.item || d;
+          renderShell();
+        }).catch(function (e) { toast(e.message, true); });
+      };
+      acts.appendChild(view);
+      card.appendChild(acts);
+      root.appendChild(card);
+    });
+  }
+  function renderTicketDetail(root) {
+    var t = state.ticketDetail;
+    if (t._new) {
+      var head = el('div', 'sec-title');
+      head.appendChild(el('h2', '', '提交工单'));
+      root.appendChild(head);
+      var form = el('div', 'form-card');
+      var fTitle = textField('标题', 'title', '简要描述问题');
+      var fOrder = textField('关联订单号（可选）', 'order_no', '');
+      var fCat = selectField('分类', 'category', [['technical', '技术故障'], ['account', '账号问题'], ['payment', '支付/充值'], ['product', '商品/交付'], ['other', '其他']]);
+      var fPri = selectField('优先级', 'priority', [['normal', '普通'], ['low', '低'], ['high', '高']]);
+      var fBody = el('div', 'fld');
+      fBody.appendChild(el('label', '', '问题描述'));
+      var bodyTa = el('textarea', 'field'); bodyTa.rows = 6; bodyTa.id = 'tk-body';
+      fBody.appendChild(bodyTa);
+      form.appendChild(fTitle.node); form.appendChild(fOrder.node);
+      form.appendChild(fCat.node); form.appendChild(fPri.node); form.appendChild(fBody);
+      var submit = el('button', 'btn btn--primary', '提交');
+      submit.type = 'button';
+      submit.style.marginTop = '12px';
+      submit.onclick = function () {
+        var payload = {
+          title: fTitle.input.value.trim(),
+          order_no: fOrder.input.value.trim(),
+          category: fCat.sel.value,
+          priority: fPri.sel.value,
+          body: bodyTa.value.trim(),
+        };
+        if (!payload.title || !payload.body) { toast('请填写标题和问题描述', true); return; }
+        submit.disabled = true;
+        request('POST', '/console/tickets', payload).then(function () {
+          toast('工单已提交');
+          state.ticketDetail = null;
+          loadTickets().then(function () { renderShell(); });
+        }).catch(function (e) { toast(e.message, true); submit.disabled = false; });
+      };
+      form.appendChild(submit);
+      var back = el('button', 'btn btn--ghost', '返回');
+      back.type = 'button'; back.style.marginLeft = '8px';
+      back.onclick = function () { state.ticketDetail = null; renderShell(); };
+      form.appendChild(back);
+      root.appendChild(form);
+      return;
+    }
+
+    var h = el('div', 'sec-title');
+    h.appendChild(el('h2', '', t.ticket_no || ('工单 #' + t.id)));
+    var backBtn = el('button', 'btn btn--ghost', '返回列表');
+    backBtn.type = 'button';
+    backBtn.onclick = function () { state.ticketDetail = null; renderShell(); };
+    h.appendChild(backBtn);
+    root.appendChild(h);
+    var info = el('div', 'hint');
+    info.textContent = t.title + ' · ' + (t.status_label || t.status) + ' · ' + fmtTime(t.created_at);
+    root.appendChild(info);
+
+    (t.messages || []).forEach(function (m) {
+      var box = el('div', 'msg-box');
+      var who = el('div', 'hint', (m.role === 'admin' ? '客服' : '我') + ' · ' + (m.author || '') + ' · ' + fmtTime(m.created_at));
+      box.appendChild(who);
+      var body = el('div', 'msg-body', m.body);
+      box.appendChild(body);
+      root.appendChild(box);
+    });
+
+    if (t.status !== 'closed') {
+      var wrap = el('div', 'form-card');
+      var ta = el('textarea', 'field'); ta.rows = 4; ta.id = 'tk-reply';
+      wrap.appendChild(ta);
+      var row = el('div', 'order-card__actions');
+      var send = el('button', 'btn btn--primary', '追加回复');
+      send.type = 'button';
+      send.onclick = function () {
+        if (!ta.value.trim()) { toast('请填写回复内容', true); return; }
+        send.disabled = true;
+        request('POST', '/console/tickets/' + t.id + '/reply', { body: ta.value.trim() }).then(function (d) {
+          toast('已回复');
+          state.ticketDetail = d.item || d;
+          renderShell();
+        }).catch(function (e) { toast(e.message, true); send.disabled = false; });
+      };
+      var close = el('button', 'btn btn--ghost', '关闭工单');
+      close.type = 'button';
+      close.onclick = function () {
+        request('POST', '/console/tickets/' + t.id + '/close', {}).then(function (d) {
+          toast('工单已关闭');
+          state.ticketDetail = d.item || d;
+          renderShell();
+        }).catch(function (e) { toast(e.message, true); });
+      };
+      row.appendChild(send); row.appendChild(close);
+      wrap.appendChild(row);
+      root.appendChild(wrap);
+    }
+  }
+  function textField(label, id, placeholder) {
+    var fld = el('div', 'fld');
+    fld.appendChild(el('label', '', label));
+    var input = el('input', 'field'); input.id = 'tk-' + id; input.placeholder = placeholder || '';
+    fld.appendChild(input);
+    return { node: fld, input: input };
+  }
+  function selectField(label, id, options) {
+    var fld = el('div', 'fld');
+    fld.appendChild(el('label', '', label));
+    var sel = el('select', 'field'); sel.id = 'tk-' + id;
+    options.forEach(function (o) {
+      var op = el('option', '', o[1]); op.value = o[0];
+      sel.appendChild(op);
+    });
+    fld.appendChild(sel);
+    return { node: fld, sel: sel };
+  }
+
   function yulanBadge(role) {
     return el('span', 'badge badge--' + (role === 'admin' ? 'paid' : 'done'),
       role === 'admin' ? '管理员账号' : '普通账号');
@@ -958,6 +1195,17 @@
       state.yulan = d.items || [];
     }).catch(function () { state.yulan = state.yulan || []; });
   }
+  // v1.4
+  function loadTickets() {
+    return request('GET', '/console/tickets?limit=50').then(function (d) {
+      state.tickets = d.items || [];
+    }).catch(function () { state.tickets = state.tickets || []; });
+  }
+  function loadCloudVms() {
+    return request('GET', '/console/cloud-vms').then(function (d) {
+      state.cloudVms = d.items || [];
+    }).catch(function () { state.cloudVms = state.cloudVms || []; });
+  }
 
   function refreshAll() {
     return request('GET', '/console/overview').then(function (d) {
@@ -965,7 +1213,7 @@
       state.stats = d.stats;
       state.payment = d.payment || state.payment;
       updateHead();
-      return Promise.all([loadOrders(), loadLedger(), loadRecharges(), loadYulan()]);
+      return Promise.all([loadOrders(), loadLedger(), loadRecharges(), loadYulan(), loadTickets(), loadCloudVms()]);
     });
   }
 
@@ -986,7 +1234,7 @@
    * ============================================================= */
   function parseHash() {
     var h = (location.hash || '').replace(/^#\/?/, '');
-    if (['orders', 'yulan', 'balance', 'profile'].indexOf(h) >= 0) return h;
+    if (['orders', 'yulan', 'cloud', 'tickets', 'balance', 'profile'].indexOf(h) >= 0) return h;
     return 'orders';
   }
 
@@ -1030,10 +1278,13 @@
     state.view = parseHash();
     state.orderDetail = null;
     state.yulanDetail = null;
+    state.ticketDetail = null;
     // 切换视图时重新拉取数据，避免看到过期列表
     var jobs = [];
     if (state.view === 'orders') jobs.push(loadOrders());
     if (state.view === 'yulan') jobs.push(loadYulan());
+    if (state.view === 'cloud') jobs.push(loadCloudVms());
+    if (state.view === 'tickets') jobs.push(loadTickets());
     if (state.view === 'balance') { jobs.push(loadLedger(), loadRecharges()); }
     Promise.all(jobs).then(function () {
       renderShell();

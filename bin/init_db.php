@@ -68,6 +68,15 @@ if ($schemaV5 === false) {
 $pdo->exec($schemaV5);
 echo "v5 表结构已就绪（users / user_sessions / balance_ledger / recharge_orders / order_deliveries / product_delivery_fields）\n";
 
+// ---------- v1.4 增量表（上游 / 云主机 / 工单） ----------
+$schemaV140 = file_get_contents(dirname(__DIR__) . '/database/schema_v140.sql');
+if ($schemaV140 === false) {
+    fwrite(STDERR, "读取 schema_v140.sql 失败\n");
+    exit(1);
+}
+$pdo->exec($schemaV140);
+echo "v1.4 表结构已就绪（upstreams / upstream_products / cloud_vms / tickets / ticket_replies）\n";
+
 // ---------- 灌数据（委托给 Seeder，与安装向导共用同一实现） ----------
 // v1.2：默认干净安装（不灌演示分类/商品），仅 --with-demo 时灌入示例数据。
 try {
