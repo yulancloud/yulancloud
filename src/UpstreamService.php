@@ -35,6 +35,13 @@ final class UpstreamService
             'account_type' => (string)$r['account_type'],
             'use_https'    => (int)$r['use_https'],
             'enabled'      => (int)$r['enabled'],
+            // v1.4.1：协议可配置字段（回退默认值，兼容旧库未迁移）
+            'auth_mode'             => (string)($r['auth_mode'] ?? 'bearer'),
+            'path_products'         => (string)($r['path_products'] ?? '/api/v1/products'),
+            'path_provision_cloud'  => (string)($r['path_provision_cloud'] ?? '/api/v1/vm/create'),
+            'path_provision_finance'=> (string)($r['path_provision_finance'] ?? '/api/v1/orders'),
+            'path_action'           => (string)($r['path_action'] ?? '/api/v1/vm/{id}/{action}'),
+            'price_is_cents'        => (int)($r['price_is_cents'] ?? 0),
             'remark'       => (string)$r['remark'],
             'api_key_set'  => ((string)$r['api_key']) !== '',
             'created_at'   => (string)($r['created_at'] ?? ''),
@@ -94,6 +101,12 @@ final class UpstreamService
             'financial_id' => (string)$r['financial_id'],
             'account_type' => (string)$r['account_type'],
             'use_https'    => (int)$r['use_https'] === 1,
+            'auth_mode'    => (string)($r['auth_mode'] ?? 'bearer'),
+            'path_products'         => (string)($r['path_products'] ?? '/api/v1/products'),
+            'path_provision_cloud'  => (string)($r['path_provision_cloud'] ?? '/api/v1/vm/create'),
+            'path_provision_finance'=> (string)($r['path_provision_finance'] ?? '/api/v1/orders'),
+            'path_action'           => (string)($r['path_action'] ?? '/api/v1/vm/{id}/{action}'),
+            'price_is_cents'        => (int)($r['price_is_cents'] ?? 0),
             'mock'         => self::mockEnabled(),
         ];
     }
@@ -102,11 +115,16 @@ final class UpstreamService
     {
         $v = self::validate($in, false);
         Db::conn()->prepare(
-            'INSERT INTO upstreams (name, kind, base_url, api_user, api_key, financial_id, account_type, use_https, enabled, remark, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime(\'now\'), datetime(\'now\'))'
+            'INSERT INTO upstreams (name, kind, base_url, api_user, api_key, financial_id, account_type, use_https,
+                auth_mode, path_products, path_provision_cloud, path_provision_finance, path_action, price_is_cents,
+                enabled, remark, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime(\'now\'), datetime(\'now\'))'
         )->execute([
             $v['name'], $v['kind'], $v['base_url'], $v['api_user'], $v['api_key'],
-            $v['financial_id'], $v['account_type'], $v['use_https'], $v['enabled'], $v['remark'],
+            $v['financial_id'], $v['account_type'], $v['use_https'],
+            $v['auth_mode'], $v['path_products'], $v['path_provision_cloud'],
+            $v['path_provision_finance'], $v['path_action'], $v['price_is_cents'],
+            $v['enabled'], $v['remark'],
         ]);
         return self::get((int)Db::conn()->lastInsertId());
     }
@@ -116,9 +134,15 @@ final class UpstreamService
         self::get($id);
         $v = self::validate($in, true);
         $sets = ['name = ?', 'kind = ?', 'base_url = ?', 'api_user = ?', 'financial_id = ?',
-                 'account_type = ?', 'use_https = ?', 'enabled = ?', 'remark = ?', "updated_at = datetime('now')"];
+                 'account_type = ?', 'use_https = ?',
+                 'auth_mode = ?', 'path_products = ?', 'path_provision_cloud = ?',
+                 'path_provision_finance = ?', 'path_action = ?', 'price_is_cents = ?',
+                 'enabled = ?', 'remark = ?', "updated_at = datetime('now')"];
         $args = [$v['name'], $v['kind'], $v['base_url'], $v['api_user'], $v['financial_id'],
-                 $v['account_type'], $v['use_https'], $v['enabled'], $v['remark']];
+                 $v['account_type'], $v['use_https'],
+                 $v['auth_mode'], $v['path_products'], $v['path_provision_cloud'],
+                 $v['path_provision_finance'], $v['path_action'], $v['price_is_cents'],
+                 $v['enabled'], $v['remark']];
         if ($v['key_set']) {
             $sets[] = 'api_key = ?';
             $args[] = $v['api_key'];
@@ -156,6 +180,8 @@ final class UpstreamService
         if ($base === '' || mb_strlen($base, 'UTF-8') > 200) {
             Response::fail('invalid_url', '接口地址需为 1-200 个字符', 400);
         }
+        // v1.4.1：拒绝把上游指向本机/内网地址（SSRF 防护）。mock 模式由全局开关控制，不在此处放行。
+        self::assertPublicBaseUrl($base);
         $user = isset($in['api_user']) ? trim((string)$in['api_user']) : '';
         $fin  = isset($in['financial_id']) ? trim((string)$in['financial_id']) : '';
         $acct = isset($in['account_type']) ? trim((string)$in['account_type']) : 'agent';
@@ -187,11 +213,79 @@ final class UpstreamService
         if (!$isUpdate && !$keySet) {
             Response::fail('invalid_key', '新增上游必须填写 API 密钥', 400);
         }
+
+        // v1.4.1：协议可配置字段
+        $authMode = (string)($in['auth_mode'] ?? 'bearer');
+        if (!in_array($authMode, ['bearer', 'basic', 'query', 'none'], true)) {
+            $authMode = 'bearer';
+        }
+        $paths = [
+            'path_products'          => '/api/v1/products',
+            'path_provision_cloud'   => '/api/v1/vm/create',
+            'path_provision_finance' => '/api/v1/orders',
+            'path_action'            => '/api/v1/vm/{id}/{action}',
+        ];
+        foreach ($paths as $k => $default) {
+            $paths[$k] = self::normalizeApiPath(isset($in[$k]) ? (string)$in[$k] : '', $default);
+        }
+        $priceIsCents = array_key_exists('price_is_cents', $in) ? ((int)($in['price_is_cents']) === 1 ? 1 : 0) : 0;
+
         return [
             'name' => $name, 'kind' => $kind, 'base_url' => $base, 'api_user' => $user,
             'api_key' => $key, 'key_set' => $keySet, 'financial_id' => $fin,
             'account_type' => $acct, 'use_https' => $https, 'enabled' => $enabled, 'remark' => $remark,
+            'auth_mode' => $authMode, 'price_is_cents' => $priceIsCents,
+            'path_products' => $paths['path_products'],
+            'path_provision_cloud' => $paths['path_provision_cloud'],
+            'path_provision_finance' => $paths['path_provision_finance'],
+            'path_action' => $paths['path_action'],
         ];
+    }
+
+    /** 规整 API 路径：空用默认；必须以 / 开头；拒绝空白与 .. */
+    private static function normalizeApiPath(string $path, string $default): string
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return $default;
+        }
+        if ($path[0] !== '/') {
+            $path = '/' . $path;
+        }
+        if (strpos($path, '..') !== false || mb_strlen($path, 'UTF-8') > 200) {
+            return $default;
+        }
+        return $path;
+    }
+
+    /**
+     * SSRF 防护：base_url 不允许指向回环/链路本地/私有网段。
+     * 仅校验 host 字面量；域名解析到内网的 DNS rebinding 属进阶威胁，需网络层防火墙兜底。
+     */
+    private static function assertPublicBaseUrl(string $base): void
+    {
+        $host = parse_url(preg_match('#^https?://#i', $base) ? $base : 'http://' . $base, PHP_URL_HOST);
+        $host = is_string($host) ? strtolower(trim($host)) : '';
+        if ($host === '' || strpos($host, '..') !== false) {
+            Response::fail('invalid_url', '接口地址格式不正确', 400);
+        }
+        // 去掉 IPv6 方括号
+        $bare = trim($host, '[]');
+        $blocked = ['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]'];
+        if (in_array($host, $blocked, true) || in_array($bare, $blocked, true)) {
+            Response::fail('unsafe_url', '接口地址不能指向本机或内网地址', 400);
+        }
+        if (filter_var($bare, FILTER_VALIDATE_IP) !== false) {
+            if (!filter_var($bare, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                Response::fail('unsafe_url', '接口地址不能指向私有网段', 400);
+            }
+        }
+        // 常见内网域名后缀
+        foreach (['.local', '.internal', '.lan'] as $suffix) {
+            if (str_ends_with($host, $suffix)) {
+                Response::fail('unsafe_url', '接口地址不能指向内网域名', 400);
+            }
+        }
     }
 
     /* ==================== 上游产品目录 ==================== */
@@ -321,8 +415,16 @@ final class UpstreamService
         if (self::mockEnabled()) {
             return ['ok' => true, 'detail' => 'MOCK 模式：连接测试通过（未真实联网）'];
         }
-        $url = self::normalizeBase($base, $https) . '/api/v1/products';
-        $header = 'Authorization: Bearer ' . (string)($in['api_key'] ?? '');
+        self::assertPublicBaseUrl($base);
+        $authMode = (string)($in['auth_mode'] ?? 'bearer');
+        $testCfg = [
+            'auth_mode' => in_array($authMode, ['bearer', 'basic', 'query', 'none'], true) ? $authMode : 'bearer',
+            'api_user'  => (string)($in['api_user'] ?? ''),
+            'api_key'   => (string)($in['api_key'] ?? ''),
+        ];
+        $path = self::normalizeApiPath((string)($in['path_products'] ?? ''), '/api/v1/products');
+        $url = self::withQueryAuth(self::normalizeBase($base, $https) . $path, $testCfg);
+        $header = self::authHeader($testCfg);
         $resp = self::httpGet($url, $header);
         if ($resp === null) {
             return ['ok' => false, 'detail' => self::lastHttpError()];
@@ -421,15 +523,43 @@ final class UpstreamService
         return is_string($res) ? $res : null;
     }
 
+    /**
+     * v1.4.1：按上游配置的鉴权方式生成请求头。
+     *  - bearer：Authorization: Bearer <api_key>（默认，兼容旧行为）
+     *  - basic ：Authorization: Basic base64(api_user:api_key)（魔方系常用）
+     *  - query ：不使用请求头，凭据作为查询参数附加（在 url 上拼接）
+     *  - none  ：不使用鉴权
+     */
     private static function authHeader(array $cfg): string
     {
-        // 魔方系 API 常用：Basic(api_user:api_key) 或 Bearer(api_key)；这里优先 Bearer，兼容团体凭据
+        $mode = (string)($cfg['auth_mode'] ?? 'bearer');
+        if ($mode === 'basic') {
+            return 'Authorization: Basic ' . base64_encode($cfg['api_user'] . ':' . $cfg['api_key']);
+        }
+        if ($mode === 'none' || $mode === 'query') {
+            return 'Accept: application/json';
+        }
         return 'Authorization: Bearer ' . $cfg['api_key'];
+    }
+
+    /** query 鉴权：把 api_user/api_key 拼到 URL 查询参数 */
+    private static function withQueryAuth(string $url, array $cfg): string
+    {
+        if ((string)($cfg['auth_mode'] ?? '') !== 'query') {
+            return $url;
+        }
+        $sep = (strpos($url, '?') === false) ? '?' : '&';
+        return $url . $sep . 'username=' . rawurlencode((string)$cfg['api_user'])
+             . '&token=' . rawurlencode((string)$cfg['api_key']);
     }
 
     private static function httpFetchProducts(array $cfg): ?array
     {
-        $url = self::normalizeBase($cfg['base_url'], $cfg['use_https']) . '/api/v1/products';
+        $path = (string)($cfg['path_products'] ?? '/api/v1/products');
+        $url = self::withQueryAuth(
+            self::normalizeBase($cfg['base_url'], $cfg['use_https']) . $path,
+            $cfg
+        );
         $resp = self::httpGet($url, self::authHeader($cfg));
         if ($resp === null) {
             return null;
@@ -445,15 +575,19 @@ final class UpstreamService
             $list = [];
         }
         $out = [];
+        $priceIsCents = (int)($cfg['price_is_cents'] ?? 0) === 1;
         foreach ($list as $p) {
             if (!is_array($p)) {
                 continue;
             }
+            // v1.4.1：价格单位可配置。默认上游价格为元 → ×100 转分；price_is_cents=1 时直接用分。
+            $rawPrice = (float)($p['price'] ?? $p['price_cents'] ?? 0);
+            $priceCents = $priceIsCents ? (int)round($rawPrice) : (int)round($rawPrice * 100);
             $out[] = [
                 'external_id' => (string)($p['id'] ?? $p['product_id'] ?? ''),
                 'name'        => (string)($p['name'] ?? ''),
                 'spec'        => (string)($p['spec'] ?? $p['description'] ?? ''),
-                'price_cents' => (int)round((float)($p['price'] ?? 0) * 100),
+                'price_cents' => $priceCents,
             ];
         }
         return $out;
@@ -461,14 +595,21 @@ final class UpstreamService
 
     private static function httpProvision(array $cfg, string $productId, array $opts): array
     {
-        $path = $cfg['kind'] === 'cloud' ? '/api/v1/vm/create' : '/api/v1/orders';
-        $url = self::normalizeBase($cfg['base_url'], $cfg['use_https']) . $path;
+        // v1.4.1：路径可配置，未在配置里填则用 kind 对应的默认路径
+        $defaultPath = $cfg['kind'] === 'cloud'
+            ? '/api/v1/vm/create' : '/api/v1/orders';
+        $pathKey = $cfg['kind'] === 'cloud' ? 'path_provision_cloud' : 'path_provision_finance';
+        $path = (string)($cfg[$pathKey] ?? '') ?: $defaultPath;
+        $url = self::withQueryAuth(
+            self::normalizeBase($cfg['base_url'], $cfg['use_https']) . $path,
+            $cfg
+        );
         $payload = [
             'product_id' => $productId,
             'account'    => $cfg['api_user'],
-            'financial_id' => $cfg['financial_id'],
             'opts'       => $opts,
         ];
+        // v1.4.1：financial_id 仅在非空时附加一次（修复旧版重复赋值）
         if ($cfg['financial_id'] !== '') {
             $payload['financial_id'] = $cfg['financial_id'];
         }
@@ -484,28 +625,43 @@ final class UpstreamService
             return ['ok' => false, 'detail' => '上游拒绝开通：' . (string)($data['message'] ?? $data['error'] ?? '未知原因'), 'instance' => []];
         }
         $d = $data['data'] ?? $data;
+        // v1.4.1：兼容真实魔方云/财务 API 常见字段别名
+        $pick = static function (array $d, array $keys): string {
+            foreach ($keys as $k) {
+                if (isset($d[$k]) && $d[$k] !== '' && $d[$k] !== null) {
+                    return (string)$d[$k];
+                }
+            }
+            return '';
+        };
         return [
             'ok' => true,
-            'detail' => (string)($d['detail'] ?? '开通成功'),
+            'detail' => $pick($d, ['detail', 'message', 'msg']) ?: '开通成功',
             'instance' => [
-                'external_id' => (string)($d['id'] ?? $d['instance_id'] ?? ''),
-                'instance_name' => (string)($d['name'] ?? ''),
-                'ip' => (string)($d['ip'] ?? ''),
-                'os' => (string)($d['os'] ?? ''),
-                'cpu' => (string)($d['cpu'] ?? ''),
-                'mem' => (string)($d['mem'] ?? ''),
-                'disk' => (string)($d['disk'] ?? ''),
-                'bandwidth' => (string)($d['bandwidth'] ?? ''),
-                'region' => (string)($d['region'] ?? ''),
-                'username' => (string)($d['username'] ?? ''),
-                'password' => (string)($d['password'] ?? ''),
+                'external_id' => $pick($d, ['id', 'instance_id', 'vm_id', 'uuid']),
+                'instance_name' => $pick($d, ['name', 'instance_name', 'hostname']),
+                'ip' => $pick($d, ['ip', 'ip_address', 'ipAddr', 'ipaddr', 'host']),
+                'os' => $pick($d, ['os', 'os_name', 'osName', 'system']),
+                'cpu' => $pick($d, ['cpu', 'cpu_cores', 'cpuNum']),
+                'mem' => $pick($d, ['mem', 'memory', 'mem_size']),
+                'disk' => $pick($d, ['disk', 'disk_size', 'diskSize']),
+                'bandwidth' => $pick($d, ['bandwidth', 'band']),
+                'region' => $pick($d, ['region', 'area', 'node']),
+                'username' => $pick($d, ['username', 'user', 'account', 'root_user']),
+                'password' => $pick($d, ['password', 'passwd', 'pwd', 'root_pwd', 'root_password']),
             ],
         ];
     }
 
     private static function httpInstanceAction(array $cfg, string $externalId, string $action, array $opts): ?array
     {
-        $url = self::normalizeBase($cfg['base_url'], $cfg['use_https']) . '/api/v1/vm/' . rawurlencode($externalId) . '/' . $action;
+        // v1.4.1：操作路径可配置，支持 {id} {action} 占位符
+        $tpl = (string)($cfg['path_action'] ?? '') ?: '/api/v1/vm/{id}/{action}';
+        $path = str_replace(['{id}', '{action}'], [rawurlencode($externalId), rawurlencode($action)], $tpl);
+        $url = self::withQueryAuth(
+            self::normalizeBase($cfg['base_url'], $cfg['use_https']) . $path,
+            $cfg
+        );
         $resp = self::httpPost($url, json_encode($opts, JSON_UNESCAPED_UNICODE) ?: '{}', self::authHeader($cfg));
         if ($resp === null) {
             return null;

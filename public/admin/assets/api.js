@@ -233,9 +233,9 @@
     ticketReply: function (id, body) { return request('POST', '/tickets/' + id + '/reply', { body: body }); },
     ticketStatus: function (id, status) { return request('POST', '/tickets/' + id + '/status', { status: status }); },
 
-    /* ---- v1.3：在线更新 ---- */
-    updateCheck: function () { return request('GET', '/update/check'); },
-    updateRun: function (opts) { return request('POST', '/update/run', opts || {}); },
+    /* ---- v1.3：在线更新（v1.4.1：检查放宽到 90s，安装放宽到 5 分钟） ---- */
+    updateCheck: function () { return request('GET', '/update/check', null, { timeout: 90000 }); },
+    updateRun: function (opts) { return request('POST', '/update/run', opts || {}, { timeout: 300000 }); },
 
     /* ---- v5：商品发货模板 ---- */
     productDelivery: function (id) { return request('GET', '/products/' + encodeURIComponent(id) + '/delivery'); },

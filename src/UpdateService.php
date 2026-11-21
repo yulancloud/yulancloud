@@ -28,9 +28,9 @@ final class UpdateService
     ];
     private const RELEASE_HOST = 'github.com';
 
-    /** 当前版本（v1.3） */
-    private const CURRENT_VERSION = '1.4.0';
-    private const CURRENT_BUILD   = '20261120b';
+    /** 当前版本 */
+    private const CURRENT_VERSION = '1.4.1';
+    private const CURRENT_BUILD   = '20261121a';
 
     /** 升级时“完全保留”的顶层路径前缀 */
     private const PRESERVE_PREFIX = [
@@ -59,7 +59,8 @@ final class UpdateService
         $tag = '';
         $d = null;
         foreach (self::RELEASE_APIS as $apiUrl) {
-            $json = self::httpGet($apiUrl);
+            // v1.4.1：检查阶段用短超时，避免国内网络访问 GitHub 卡满 120s 累加导致前端超时
+            $json = self::httpGet($apiUrl, false, 12);
             if ($json === null || $json === '') {
                 continue;
             }
@@ -149,6 +150,12 @@ final class UpdateService
      */
     public static function run(array $opts): array
     {
+        // v1.4.1：更新是「下载+解压+逐文件写入+迁移」的同步重操作，常需数十秒到数分钟。
+        // 解除 PHP 执行时间限制并忽略客户端断开，避免浏览器 15s 超时 abort 后 PHP 进程被中断，
+        // 造成「前台报超时、后台写一半」的半成品状态。
+        if (function_exists('set_time_limit')) { @set_time_limit(0); }
+        if (function_exists('ignore_user_abort')) { @ignore_user_abort(true); }
+
         $url = trim((string)($opts['asset_url'] ?? ''));
         if ($url === '') {
             throw new RuntimeException('缺少升级包地址');
@@ -378,18 +385,20 @@ final class UpdateService
         return null;
     }
 
-    /** HTTP GET（curl 优先，支持二进制） */
-    private static function httpGet(string $url, bool $binary = false): ?string
+    /** HTTP GET（curl 优先，支持二进制）；$timeout<=0 时用默认值 */
+    private static function httpGet(string $url, bool $binary = false, int $timeout = 0): ?string
     {
-        $ua = 'YulanFinance-Updater/1.3';
+        $ua = 'YulanFinance-Updater/1.4.1';
+        $connectTimeout = $timeout > 0 ? min(8, $timeout) : 8;
+        $totalTimeout   = $timeout > 0 ? $timeout : 120;
         if (function_exists('curl_init')) {
             $ch = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS      => 5,
-                CURLOPT_CONNECTTIMEOUT => 8,
-                CURLOPT_TIMEOUT        => 120,
+                CURLOPT_CONNECTTIMEOUT => $connectTimeout,
+                CURLOPT_TIMEOUT        => $totalTimeout,
                 CURLOPT_USERAGENT      => $ua,
                 CURLOPT_HTTPHEADER     => ['Accept: application/octet-stream'],
             ]);
@@ -399,8 +408,9 @@ final class UpdateService
             curl_close($ch);
             return ($err === 0 && $code >= 200 && $code < 300 && is_string($res)) ? $res : null;
         }
+        $streamTimeout = $timeout > 0 ? $timeout : ($binary ? 120 : 20);
         $ctx = stream_context_create([
-            'http' => ['method' => 'GET', 'timeout' => $binary ? 120 : 20,
+            'http' => ['method' => 'GET', 'timeout' => $streamTimeout,
                        'header' => "User-Agent: {$ua}\r\n"],
         ]);
         $res = @file_get_contents($url, false, $ctx);
@@ -412,7 +422,8 @@ final class UpdateService
             $bin = escapeshellarg($url);
             $out = [];
             $code = 0;
-            @exec("curl -sL --max-time " . ($binary ? 180 : 20) . " -A " . escapeshellarg($ua) . " {$bin} 2>/dev/null", $out, $code);
+            $cliTimeout = $timeout > 0 ? $timeout : ($binary ? 180 : 20);
+            @exec("curl -sL --max-time " . $cliTimeout . " -A " . escapeshellarg($ua) . " {$bin} 2>/dev/null", $out, $code);
             if ($code === 0 && $out) {
                 return implode("\n", $out);
             }

@@ -198,9 +198,9 @@ switch (true) {
             'status' => 'up',
             'time' => date('c'),
             'installed' => $installed,
-            'version' => '1.4.0',
+            'version' => '1.4.1',
             // 构建号：升级后用 curl /api/health 看这里即可确认服务器跑的是不是新代码
-            'build' => '20261120b',
+            'build' => '20261121a',
             'php' => PHP_VERSION,
         ]);
 
@@ -254,7 +254,7 @@ switch (true) {
         Response::ok([
             'plugins' => PluginRuntime::ids(),
             'assets'  => $slots,
-            'build'   => '20261120b',
+            'build'   => '20261121a',
             'diag'    => $diag,
         ]);
 
@@ -1159,6 +1159,9 @@ switch (true) {
         }
 
     case $path === '/api/admin/update/run' && $method === 'POST':
+        // v1.4.1：在线更新为长耗时同步操作，解除脚本执行时间限制并忽略客户端断开
+        if (function_exists('set_time_limit')) { @set_time_limit(0); }
+        if (function_exists('ignore_user_abort')) { @ignore_user_abort(true); }
         $u = AdminAuth::requireOwner();
         $body = readJsonBody();
         try {

@@ -490,6 +490,24 @@ try {
         $pdo->exec("ALTER TABLE products ADD COLUMN upstream_product_id TEXT NOT NULL DEFAULT ''");
     }
 
+    // v1.4.1：上游协议可配置（真实魔方云/财务 API 鉴权与路径各不相同）
+    // CREATE TABLE IF NOT EXISTS 不会给已存在的表补列，故逐列幂等 ALTER。
+    if (tableExists($pdo, 'upstreams')) {
+        $upCols = [
+            'auth_mode'             => "TEXT NOT NULL DEFAULT 'bearer'",
+            'path_products'         => "TEXT NOT NULL DEFAULT '/api/v1/products'",
+            'path_provision_cloud'  => "TEXT NOT NULL DEFAULT '/api/v1/vm/create'",
+            'path_provision_finance'=> "TEXT NOT NULL DEFAULT '/api/v1/orders'",
+            'path_action'           => "TEXT NOT NULL DEFAULT '/api/v1/vm/{id}/{action}'",
+            'price_is_cents'        => "INTEGER NOT NULL DEFAULT 0",
+        ];
+        foreach ($upCols as $col => $def) {
+            if (!columnExists($pdo, 'upstreams', $col)) {
+                $pdo->exec("ALTER TABLE upstreams ADD COLUMN {$col} {$def}");
+            }
+        }
+    }
+
     // yulan_accounts 表
     if (!tableExists($pdo, 'yulan_accounts')) {
         $pdo->exec(<<<'SQL'

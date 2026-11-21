@@ -57,7 +57,7 @@ sweep(document)})();</script>
 <meta name="theme-color" content="#f5f6f8">
 <title>购物袋 — 欲蓝财务 YULAN</title>
 <meta name="description" content="查看并确认你的购物袋。">
-<link rel="stylesheet" href="assets/style.css?v=20261120b">
+<link rel="stylesheet" href="assets/style.css?v=20261121a">
 <link rel="stylesheet" href="api/theme.css">
 </head>
 <body>
@@ -231,9 +231,9 @@ sweep(document)})();</script>
   </div>
 </footer>
 
-<script src="assets/data.js?v=20261120b"></script>
-<script src="assets/api.js?v=20261120b"></script>
-<script src="assets/app.js?v=20261120b"></script>
+<script src="assets/data.js?v=20261121a"></script>
+<script src="assets/api.js?v=20261121a"></script>
+<script src="assets/app.js?v=20261121a"></script>
 <script>
 /* 数据就绪后再渲染：购物袋里的商品信息需要与后端价格一致 */
 window.shopBoot(function () {
@@ -279,10 +279,15 @@ window.shopBoot(function () {
           '<div class="cart-item__price num">' + money(unit * line.qty) + '</div>' +
           (function () {
             if (line.type !== 'yulan') return '';
+            // v1.4.1：绑定上游的商品账号由上游开通后生成，无需用户填写；仅存量未绑上游的商品要求填账号密码
+            if ((p.upstream_id || 0) > 0) {
+              return '<div class="cart-item__yulan" style="grid-column:1/-1;margin-top:4px;padding:10px 12px;border-radius:11px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--hair-2);font-size:12px;color:var(--ink-3)">' +
+                '魔方财务（对接上游）· 账号与密码将在支付成功后由上游自动生成并交付，无需填写。</div>';
+            }
             return '<div class="cart-item__yulan" style="grid-column:1/-1;display:grid;gap:7px;margin-top:4px;padding:10px 12px;border-radius:11px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--hair-2)">' +
-              '<div style="font-size:12px;color:var(--ink-3)">欲蓝财务魔方 · 创建该 Windows 账号</div>' +
-              '<input class="field" data-yulan-account="' + e(line.key) + '" maxlength="20" autocomplete="off" placeholder="Windows 账号（1-20 位字母数字）" value="' + e(line.account || '') + '">' +
-              '<input class="field" data-yulan-pass="' + e(line.key) + '" type="password" maxlength="64" autocomplete="off" placeholder="Windows 密码（至少 6 位，平台不存储）" value="' + e(line.password || '') + '">' +
+              '<div style="font-size:12px;color:var(--ink-3)">魔方财务 · 设置初始账号</div>' +
+              '<input class="field" data-yulan-account="' + e(line.key) + '" maxlength="20" autocomplete="off" placeholder="账号（1-20 位字母数字）" value="' + e(line.account || '') + '">' +
+              '<input class="field" data-yulan-pass="' + e(line.key) + '" type="password" maxlength="64" autocomplete="off" placeholder="密码（至少 6 位，平台不存储）" value="' + e(line.password || '') + '">' +
             '</div>';
           })() +
           '<button class="cart-item__del" type="button" data-del aria-label="移除' + e(p.name) + '">' +
@@ -536,13 +541,15 @@ window.shopBoot(function () {
     if (!/^(?:\+?86)?1[3-9]\d{9}$/.test(phone.replace(/[\s-]/g, ''))) { U.toast('请填写有效的手机号'); document.getElementById('f-phone').focus(); return; }
     if (address.length < 5) { U.toast('请填写完整的收货地址'); document.getElementById('f-address').focus(); return; }
 
-    // 欲蓝财务魔方：下单前校验账号 / 密码必填且合规
+    // v1.4.1：仅「未绑定上游」的 yulan 商品需要用户填账号密码；绑定上游的由上游开通后生成
     var yulanErr = null;
     arr.forEach(function (l) {
       if (l.type !== 'yulan') return;
+      var prod = U.findProduct(l.id);
+      if ((prod && prod.upstream_id || 0) > 0) return; // 上游模式：账号由上游生成
       var acc = (l.account || '').trim(), pwd = l.password || '';
-      if (!/^[A-Za-z0-9._-]{1,20}$/.test(acc)) yulanErr = '请填写合法的 Windows 账号（1-20 位字母数字）';
-      else if (pwd.length < 6) yulanErr = '欲蓝账号密码至少 6 位';
+      if (!/^[A-Za-z0-9._-]{1,20}$/.test(acc)) yulanErr = '请填写合法的账号（1-20 位字母数字）';
+      else if (pwd.length < 6) yulanErr = '初始密码至少 6 位';
     });
     if (yulanErr) { U.toast(yulanErr, 'error'); return; }
 

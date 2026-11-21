@@ -174,6 +174,8 @@ final class ProductRepo
             // 商品类型必须下发给前台：购物袋据此判断「全虚拟商品订单免运费」。
             // 之前漏了这个字段，前台 p.type 恒为 undefined，虚拟商品一律被当成实体收运费。
             'type'  => (string)($r['type'] ?? 'physical'),
+            // v1.4.1：下发是否绑定上游，供购物车判断「yulan 商品是否需要用户填账号密码」
+            'upstream_id' => (int)($r['upstream_id'] ?? 0),
             'yulan_account_limit' => (int)($r['yulan_account_limit'] ?? 0),
             'yulan_ip_restrict'   => (int)($r['yulan_ip_restrict'] ?? 0),
             'sku'   => $r['sku'],

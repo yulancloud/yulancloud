@@ -207,6 +207,22 @@
             + '<input class="field" id="up-key" type="password" maxlength="128" autocomplete="new-password" placeholder="'
             + (!isNew && u.api_key_set ? '留空不修改；__CLEAR__ 清空' : '至少 4 位') + '">'
             + '<div class="hint">只写不读；留空保持不变</div></div>'
+            + '<div class="fld"><label for="up-auth">鉴权方式</label>'
+            + '<select class="field" id="up-auth">'
+            + '<option value="bearer"' + ((u.auth_mode || 'bearer') === 'bearer' ? ' selected' : '') + '>Bearer Token（默认）</option>'
+            + '<option value="basic"' + (u.auth_mode === 'basic' ? ' selected' : '') + '>Basic（账号:密钥）</option>'
+            + '<option value="query"' + (u.auth_mode === 'query' ? ' selected' : '') + '>URL 参数（username/token）</option>'
+            + '<option value="none"' + (u.auth_mode === 'none' ? ' selected' : '') + '>无鉴权</option>'
+            + '</select><div class="hint">按真实上游 API 文档选择；魔方系多用 Basic</div></div>'
+            + '<div class="fld"><label for="up-priceunit">上游价格单位</label>'
+            + '<select class="field" id="up-priceunit">'
+            + '<option value="0"' + (!u.price_is_cents ? ' selected' : '') + '>元（自动 ×100 转分）</option>'
+            + '<option value="1"' + (u.price_is_cents ? ' selected' : '') + '>分（直接使用）</option>'
+            + '</select><div class="hint">同步产品时上游返回的价格单位</div></div>'
+            + fld('up-path-products', '产品列表路径', u.path_products || '/api/v1/products', '如 /api/v1/products', 200)
+            + fld('up-path-cloud', '云主机开通路径', u.path_provision_cloud || '/api/v1/vm/create', '魔方云 KVM 开通接口', 200)
+            + fld('up-path-fin', '财务下单路径', u.path_provision_finance || '/api/v1/orders', '财务上游下单接口', 200)
+            + fld('up-path-action', '实例操作路径', u.path_action || '/api/v1/vm/{id}/{action}', '支持 {id} {action} 占位符', 200)
             + fld('up-remark', '备注', u.remark || '', '可留空', 200)
             + '</div>'
             + '<div style="margin-top:14px;display:flex;gap:8px">'
@@ -244,6 +260,12 @@
               use_https: parseInt(document.getElementById('up-https').value, 10),
               enabled: parseInt(document.getElementById('up-enabled').value, 10),
               api_key: document.getElementById('up-key').value,
+              auth_mode: document.getElementById('up-auth').value,
+              price_is_cents: parseInt(document.getElementById('up-priceunit').value, 10),
+              path_products: document.getElementById('up-path-products').value.trim(),
+              path_provision_cloud: document.getElementById('up-path-cloud').value.trim(),
+              path_provision_finance: document.getElementById('up-path-fin').value.trim(),
+              path_action: document.getElementById('up-path-action').value.trim(),
               remark: document.getElementById('up-remark').value.trim(),
             };
           }

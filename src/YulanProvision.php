@@ -83,20 +83,21 @@ final class YulanProvision
                 // 上游交付信息（IP / 一次性密码）写入发货内容，平台不长期持有明文密码
                 if ($res['ok'] && !empty($res['instance'])) {
                     $inst = $res['instance'];
-                    $lines = [];
+                    // v1.4.1：修复变量遮蔽——旧版此处 $lines = [] 覆盖了 foreach 正在遍历的参数数组
+                    $contentLines = [];
                     if (($inst['ip'] ?? '') !== '') {
-                        $lines[] = '连接地址：' . $inst['ip'];
+                        $contentLines[] = '连接地址：' . $inst['ip'];
                     }
-                    $lines[] = '账号：' . ($inst['username'] ?? $account);
+                    $contentLines[] = '账号：' . ($inst['username'] ?? $account);
                     if (($inst['password'] ?? '') !== '') {
-                        $lines[] = '密码：' . $inst['password'] . '（仅此一份，请立即保存）';
+                        $contentLines[] = '密码：' . $inst['password'] . '（仅此一份，请立即保存）';
                     }
                     $pdo->prepare(
                         "INSERT INTO order_deliveries
                          (order_id, order_no, order_item_id, product_id, product_name, kind, content, status, delivered_at, created_at, updated_at)
                          VALUES (?, ?, ?, ?, (SELECT name FROM products WHERE id = ?), 'yulan', ?, 'delivered', datetime('now'), datetime('now'), datetime('now'))"
                     )->execute([
-                        $orderId, $orderNo, $itemId, $productId, $productId, implode("\n", $lines),
+                        $orderId, $orderNo, $itemId, $productId, $productId, implode("\n", $contentLines),
                     ]);
                 }
             } else {

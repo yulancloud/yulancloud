@@ -1315,7 +1315,7 @@
     title: '在线更新',
     render: function (host) {
       host.innerHTML =
-        '<div class="notice"><span>在线更新会从官方 Release 下载最新版系统包并覆盖程序文件，但会<strong>完整保留</strong>你的数据库（站点设置、主页文案、商品 / 订单）、<code>config/</code> 配置、已安装的主题与插件。升级前建议先在后台或服务器手动备份一次 <code>data/</code> 目录。</span></div>' +
+        '<div class="notice"><span>在线更新会从官方 Release 下载最新版系统包并覆盖程序文件，但会<strong>完整保留</strong>你的数据库（站点设置、主页文案、商品 / 订单）、<code>config/</code> 配置、已安装的主题与插件。升级前建议先在后台或服务器手动备份一次 <code>data/</code> 目录。<br>v1.4.1 起已放宽超时：下载安装通常需要 1–5 分钟，期间<strong>请勿关闭页面或重复点击</strong>；若提示中断，请稍后刷新查看是否已升级成功。</span></div>' +
         '<div class="panel-card">' +
           '<div class="panel-card__head"><h2>版本信息</h2>' +
             '<div class="panel-card__actions"><button class="btn btn--primary" id="up-check" type="button">检查更新</button></div>' +
@@ -1353,12 +1353,13 @@
         if (run) run.addEventListener('click', function () {
           if (!window.confirm('确定立即更新到 ' + (latest.tag || '最新版') + '？\n\n将保留数据库、设置、主题与插件，仅覆盖程序文件。')) return;
           run.disabled = true;
-          run.textContent = '正在下载并安装…请勿关闭页面';
+          run.textContent = '正在下载并安装…可能需要 1–5 分钟，请勿关闭页面';
           API.updateRun({ asset_url: latest.asset.browser_download_url, version: latest.tag || latest.version }).then(function (r) {
             U.toast('更新完成，页面即将刷新');
             setTimeout(function () { location.reload(); }, 1200);
           }).catch(function (err) {
-            U.toast('更新失败：' + err.message, 'error');
+            // v1.4.1：即使前端等待超时，后端可能仍在写入或已升级成功，切勿重复点击。
+            U.toast('更新请求中断：' + err.message + '。请等待 1 分钟后刷新页面查看是否已升级成功，不要重复点击。', 'error');
             run.disabled = false;
             run.textContent = '立即更新（保留设置与设计）';
           });

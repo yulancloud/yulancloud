@@ -178,7 +178,7 @@ final class OrderService
                 $size  = Validator::text($raw['size'] ?? '', 0, 30, '规格');
 
                 $stmt = $pdo->prepare(
-                    "SELECT id, sku, name, price_cents, stock, type FROM products
+                    "SELECT id, sku, name, price_cents, stock, type, upstream_id FROM products
                      WHERE id = :id AND status = 'active'"
                 );
                 $stmt->execute([':id' => $pid]);
@@ -246,19 +246,25 @@ final class OrderService
                     'line_cents' => $lineTotal,
                     'type'       => (string)($p['type'] ?? 'physical'),
                 ];
-                // 欲蓝商品：下单时必须提供账号与密码（首页/购物车会收集），由网站向 Windows APP 建号
+                // 欲蓝商品账号来源分两种（v1.4.1 修正）：
+                //  - 绑定上游（upstream_id>0）：账号/密码由上游开通后返回，用户无需填写；
+                //    开通时机统一挪到「支付成功后」（由 DeliveryService 处理），不在下单时调上游。
+                //  - 未绑定上游（存量 Windows APP 兼容）：仍需用户填写账号密码，下单即建号。
                 if ((string)($p['type'] ?? 'physical') === 'yulan') {
-                    if (!isset($raw['account']) || !isset($raw['password'])
-                        || !is_string($raw['account']) || !is_string($raw['password'])) {
-                        Response::fail('yulan_missing_cred', '欲蓝商品需填写账号与密码', 400);
+                    $boundUpstream = (int)($p['upstream_id'] ?? 0) > 0;
+                    if (!$boundUpstream) {
+                        if (!isset($raw['account']) || !isset($raw['password'])
+                            || !is_string($raw['account']) || !is_string($raw['password'])) {
+                            Response::fail('yulan_missing_cred', '该商品需填写账号与密码', 400);
+                        }
+                        $yulanRaw[] = [
+                            'product_id' => $p['id'],
+                            'account'    => $raw['account'],
+                            'password'   => $raw['password'],
+                            'qty'        => $qty,
+                            'line_idx'   => count($lines) - 1,
+                        ];
                     }
-                    $yulanRaw[] = [
-                        'product_id' => $p['id'],
-                        'account'    => $raw['account'],
-                        'password'   => $raw['password'],
-                        'qty'        => $qty,
-                        'line_idx'   => count($lines) - 1,
-                    ];
                 }
             }
 

@@ -85,7 +85,20 @@ final class DeliveryService
                 continue;
             }
 
-            // 欲蓝财务魔方：交付「连接地址 + 账号」（密码平台不存储，下单时已用于建号）
+            // v1.4.1：欲蓝财务魔方若绑定了上游，账号/密码由上游生成，需在支付后开通（与 cloud 一致）
+            if ($ptype === 'yulan') {
+                $up = $pdo->prepare('SELECT upstream_id FROM products WHERE id = ?');
+                $up->execute([(string)$it['product_id']]);
+                $boundUpstream = (int)($up->fetchColumn() ?: 0) > 0;
+                if ($boundUpstream) {
+                    if (self::deliverUpstreamYulan($pdo, $orderId, $orderNo, $it)) {
+                        $made++;
+                    }
+                    continue;
+                }
+            }
+
+            // 存量兼容（未绑定上游）：交付「连接地址 + 账号」（下单时已用 Windows APP 建号）
             if ($kind === 'yulan') {
                 $content = self::renderYulan($pdo, $orderId, (int)$it['item_id'], $orderNo);
                 $pdo->prepare(
@@ -144,6 +157,15 @@ final class DeliveryService
         $itemId = (int)$it['item_id'];
         $productId = (string)$it['product_id'];
 
+        // v1.4.1 幂等：已生成过 cloud 发货记录则跳过，防止重复支付回调重复开通云主机
+        $exists = $pdo->prepare(
+            "SELECT 1 FROM order_deliveries WHERE order_id = ? AND order_item_id = ? AND kind = 'cloud' LIMIT 1"
+        );
+        $exists->execute([$orderId, $itemId]);
+        if ($exists->fetchColumn() !== false) {
+            return true;
+        }
+
         // 取商品的上游配置 / 上游产品 / 订单用户
         $p = $pdo->prepare('SELECT upstream_id, upstream_product_id FROM products WHERE id = ?');
         $p->execute([$productId]);
@@ -194,6 +216,86 @@ final class DeliveryService
             "INSERT INTO order_deliveries
              (order_id, order_no, order_item_id, product_id, product_name, kind, content, status, delivered_at, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, 'cloud', ?, ?, datetime('now'), datetime('now'), datetime('now'))"
+        )->execute([
+            $orderId, $orderNo, $itemId, $productId, (string)$it['item_name'],
+            $content, $ok ? 'delivered' : 'pending',
+        ]);
+        return $ok;
+    }
+
+    /**
+     * v1.4.1：支付后为「绑定上游的魔方财务商品」开通实例并交付连接信息。
+     * 修复旧版「下单即开通、未付款就调上游且不可回滚」的问题，与 cloud 同样在支付成功后执行。
+     * 幂等：同一 item 已有 yulan 发货记录则跳过。
+     */
+    private static function deliverUpstreamYulan(PDO $pdo, int $orderId, string $orderNo, array $it): bool
+    {
+        $itemId = (int)$it['item_id'];
+        $productId = (string)$it['product_id'];
+
+        // 幂等：已生成过 yulan 发货记录则跳过（防止重复支付通知重复开通）
+        $exists = $pdo->prepare(
+            "SELECT 1 FROM order_deliveries WHERE order_id = ? AND order_item_id = ? AND kind = 'yulan' LIMIT 1"
+        );
+        $exists->execute([$orderId, $itemId]);
+        if ($exists->fetchColumn() !== false) {
+            return true;
+        }
+
+        $p = $pdo->prepare('SELECT upstream_id, upstream_product_id FROM products WHERE id = ?');
+        $p->execute([$productId]);
+        $prod = $p->fetch() ?: [];
+        $upstreamId = (int)($prod['upstream_id'] ?? 0);
+        $upProductId = (string)($prod['upstream_product_id'] ?? '') ?: $productId;
+
+        $ok = false;
+        $inst = [];
+        $detail = '未配置上游，无法自动开通';
+        if (class_exists('UpstreamService') && $upstreamId > 0) {
+            $res = UpstreamService::provision($upstreamId, $upProductId, [
+                'order_no'   => $orderNo,
+                'product_id' => $productId,
+                'qty'        => (int)($it['qty'] ?? 1),
+            ]);
+            $ok = (bool)$res['ok'];
+            $inst = $res['instance'] ?? [];
+            $detail = (string)$res['detail'];
+        }
+
+        $contentLines = [];
+        if ($ok) {
+            foreach (['ip' => '连接地址', 'username' => '账号', 'os' => '系统',
+                      'cpu' => 'CPU', 'mem' => '内存', 'region' => '地区'] as $k => $label) {
+                if (($inst[$k] ?? '') !== '') {
+                    $contentLines[] = $label . '：' . $inst[$k];
+                }
+            }
+            if (($inst['password'] ?? '') !== '') {
+                $contentLines[] = '密码：' . $inst['password'] . '（仅此一份，请立即保存）';
+            }
+            // 记一条 yulan_accounts（只存账号名，不含密码），保持限购/去重数据一致
+            $account = (string)($inst['username'] ?? 'up-' . substr($orderNo, -8));
+            $existsAcc = $pdo->prepare(
+                "SELECT 1 FROM yulan_accounts WHERE order_id = ? AND order_item_id = ? LIMIT 1"
+            );
+            $existsAcc->execute([$orderId, $itemId]);
+            if ($existsAcc->fetchColumn() === false) {
+                $pdo->prepare(
+                    "INSERT INTO yulan_accounts
+                     (order_id, order_item_id, product_id, account, role, status, detail, created_at, updated_at)
+                     VALUES (?, ?, ?, ?, 'user', 'created', ?, datetime('now'), datetime('now'))"
+                )->execute([$orderId, $itemId, $productId, $account, $detail]);
+            }
+        } else {
+            $contentLines[] = '上游开通未完成：' . $detail;
+            $contentLines[] = '请联系客服并提供订单号 ' . $orderNo;
+        }
+        $content = implode("\n", $contentLines);
+
+        $pdo->prepare(
+            "INSERT INTO order_deliveries
+             (order_id, order_no, order_item_id, product_id, product_name, kind, content, status, delivered_at, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, 'yulan', ?, ?, datetime('now'), datetime('now'), datetime('now'))"
         )->execute([
             $orderId, $orderNo, $itemId, $productId, (string)$it['item_name'],
             $content, $ok ? 'delivered' : 'pending',
