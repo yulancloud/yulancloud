@@ -18,9 +18,21 @@
  */
 declare(strict_types=1);
 
+require_once __DIR__ . '/MofangApi.php';
+
 final class UpstreamService
 {
     /* ==================== 上游 CRUD ==================== */
+
+    /** v1.5：读取 api_type，旧库无此列时按 kind 推断（finance→老财务，cloud→v10 魔方云） */
+    private static function resolveApiType(array $r): string
+    {
+        $t = strtolower((string)($r['api_type'] ?? ''));
+        if (in_array($t, ['v10', 'finance', 'whmcs'], true)) {
+            return $t;
+        }
+        return (string)($r['kind'] ?? 'cloud') === 'finance' ? 'finance' : 'v10';
+    }
 
     private static function publicRow(array $r): array
     {
@@ -35,12 +47,14 @@ final class UpstreamService
             'account_type' => (string)$r['account_type'],
             'use_https'    => (int)$r['use_https'],
             'enabled'      => (int)$r['enabled'],
-            // v1.4.1：协议可配置字段（回退默认值，兼容旧库未迁移）
+            // v1.5：上游协议（v10 新魔方云/财务 / finance 老财务 / whmcs）
+            'api_type'              => self::resolveApiType($r),
+            // v1.4.1：协议可配置字段（回退默认值，兼容旧库未迁移）——默认改为真实路径
             'auth_mode'             => (string)($r['auth_mode'] ?? 'bearer'),
-            'path_products'         => (string)($r['path_products'] ?? '/api/v1/products'),
-            'path_provision_cloud'  => (string)($r['path_provision_cloud'] ?? '/api/v1/vm/create'),
-            'path_provision_finance'=> (string)($r['path_provision_finance'] ?? '/api/v1/orders'),
-            'path_action'           => (string)($r['path_action'] ?? '/api/v1/vm/{id}/{action}'),
+            'path_products'         => (string)($r['path_products'] ?? '/api/v1/product'),
+            'path_provision_cloud'  => (string)($r['path_provision_cloud'] ?? '/console/v1/cart'),
+            'path_provision_finance'=> (string)($r['path_provision_finance'] ?? '/cart/add_to_shop'),
+            'path_action'           => (string)($r['path_action'] ?? '/provision/default'),
             'price_is_cents'        => (int)($r['price_is_cents'] ?? 0),
             'remark'       => (string)$r['remark'],
             'api_key_set'  => ((string)$r['api_key']) !== '',
@@ -101,11 +115,12 @@ final class UpstreamService
             'financial_id' => (string)$r['financial_id'],
             'account_type' => (string)$r['account_type'],
             'use_https'    => (int)$r['use_https'] === 1,
+            'api_type'     => self::resolveApiType($r),
             'auth_mode'    => (string)($r['auth_mode'] ?? 'bearer'),
-            'path_products'         => (string)($r['path_products'] ?? '/api/v1/products'),
-            'path_provision_cloud'  => (string)($r['path_provision_cloud'] ?? '/api/v1/vm/create'),
-            'path_provision_finance'=> (string)($r['path_provision_finance'] ?? '/api/v1/orders'),
-            'path_action'           => (string)($r['path_action'] ?? '/api/v1/vm/{id}/{action}'),
+            'path_products'         => (string)($r['path_products'] ?? '/api/v1/product'),
+            'path_provision_cloud'  => (string)($r['path_provision_cloud'] ?? '/console/v1/cart'),
+            'path_provision_finance'=> (string)($r['path_provision_finance'] ?? '/cart/add_to_shop'),
+            'path_action'           => (string)($r['path_action'] ?? '/provision/default'),
             'price_is_cents'        => (int)($r['price_is_cents'] ?? 0),
             'mock'         => self::mockEnabled(),
         ];
@@ -115,12 +130,12 @@ final class UpstreamService
     {
         $v = self::validate($in, false);
         Db::conn()->prepare(
-            'INSERT INTO upstreams (name, kind, base_url, api_user, api_key, financial_id, account_type, use_https,
+            'INSERT INTO upstreams (name, kind, api_type, base_url, api_user, api_key, financial_id, account_type, use_https,
                 auth_mode, path_products, path_provision_cloud, path_provision_finance, path_action, price_is_cents,
                 enabled, remark, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime(\'now\'), datetime(\'now\'))'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime(\'now\'), datetime(\'now\'))'
         )->execute([
-            $v['name'], $v['kind'], $v['base_url'], $v['api_user'], $v['api_key'],
+            $v['name'], $v['kind'], $v['api_type'], $v['base_url'], $v['api_user'], $v['api_key'],
             $v['financial_id'], $v['account_type'], $v['use_https'],
             $v['auth_mode'], $v['path_products'], $v['path_provision_cloud'],
             $v['path_provision_finance'], $v['path_action'], $v['price_is_cents'],
@@ -133,12 +148,12 @@ final class UpstreamService
     {
         self::get($id);
         $v = self::validate($in, true);
-        $sets = ['name = ?', 'kind = ?', 'base_url = ?', 'api_user = ?', 'financial_id = ?',
+        $sets = ['name = ?', 'kind = ?', 'api_type = ?', 'base_url = ?', 'api_user = ?', 'financial_id = ?',
                  'account_type = ?', 'use_https = ?',
                  'auth_mode = ?', 'path_products = ?', 'path_provision_cloud = ?',
                  'path_provision_finance = ?', 'path_action = ?', 'price_is_cents = ?',
                  'enabled = ?', 'remark = ?', "updated_at = datetime('now')"];
-        $args = [$v['name'], $v['kind'], $v['base_url'], $v['api_user'], $v['financial_id'],
+        $args = [$v['name'], $v['kind'], $v['api_type'], $v['base_url'], $v['api_user'], $v['financial_id'],
                  $v['account_type'], $v['use_https'],
                  $v['auth_mode'], $v['path_products'], $v['path_provision_cloud'],
                  $v['path_provision_finance'], $v['path_action'], $v['price_is_cents'],
@@ -214,16 +229,26 @@ final class UpstreamService
             Response::fail('invalid_key', '新增上游必须填写 API 密钥', 400);
         }
 
-        // v1.4.1：协议可配置字段
+        // v1.5：上游协议类型（v10 新魔方云/财务 / finance 老财务 / whmcs）
+        $apiType = strtolower((string)($in['api_type'] ?? ''));
+        if (!in_array($apiType, ['v10', 'finance', 'whmcs'], true)) {
+            $apiType = $kind === 'finance' ? 'finance' : 'v10';
+        }
         $authMode = (string)($in['auth_mode'] ?? 'bearer');
         if (!in_array($authMode, ['bearer', 'basic', 'query', 'none'], true)) {
             $authMode = 'bearer';
         }
+        // v1.5：默认路径改为智简魔方 v10 真实端点（v1.4.x 的 /api/v1/products 等是自造协议，全部 404）
+        $realDefaults = $apiType === 'finance'
+            ? ['/api/product/list', '/cart/add_to_shop', '/cart/settle', '/provision/default']
+            : ($apiType === 'whmcs'
+                ? ['product_listing', 'host_addOrder', 'host_addOrder', 'service_suspend']
+                : ['/api/v1/product', '/console/v1/cart', '/console/v1/cart/settle', '/provision/default']);
         $paths = [
-            'path_products'          => '/api/v1/products',
-            'path_provision_cloud'   => '/api/v1/vm/create',
-            'path_provision_finance' => '/api/v1/orders',
-            'path_action'            => '/api/v1/vm/{id}/{action}',
+            'path_products'          => $realDefaults[0],
+            'path_provision_cloud'   => $realDefaults[1],
+            'path_provision_finance' => $realDefaults[2],
+            'path_action'            => $realDefaults[3],
         ];
         foreach ($paths as $k => $default) {
             $paths[$k] = self::normalizeApiPath(isset($in[$k]) ? (string)$in[$k] : '', $default);
@@ -231,7 +256,8 @@ final class UpstreamService
         $priceIsCents = array_key_exists('price_is_cents', $in) ? ((int)($in['price_is_cents']) === 1 ? 1 : 0) : 0;
 
         return [
-            'name' => $name, 'kind' => $kind, 'base_url' => $base, 'api_user' => $user,
+            'name' => $name, 'kind' => $kind, 'api_type' => $apiType,
+            'base_url' => $base, 'api_user' => $user,
             'api_key' => $key, 'key_set' => $keySet, 'financial_id' => $fin,
             'account_type' => $acct, 'use_https' => $https, 'enabled' => $enabled, 'remark' => $remark,
             'auth_mode' => $authMode, 'price_is_cents' => $priceIsCents,
@@ -316,9 +342,21 @@ final class UpstreamService
         if ($cfg['mock']) {
             $list = self::mockProducts($cfg);
         } else {
-            $list = self::httpFetchProducts($cfg);
-            if ($list === null) {
-                Response::fail('sync_failed', '拉取上游产品失败：' . self::lastHttpError(), 502);
+            $api = self::mofang($cfg);
+            $raw = $api->fetchProducts();
+            if ($raw === null) {
+                Response::fail('sync_failed', '拉取上游产品失败：' . $api->lastError(), 502);
+            }
+            // 统一成内部 price_cents（元→分，price_is_cents=1 时直接使用）
+            $priceIsCents = (int)($cfg['price_is_cents'] ?? 0) === 1;
+            $list = [];
+            foreach ($raw as $p) {
+                $list[] = [
+                    'external_id' => $p['external_id'],
+                    'name'        => $p['name'],
+                    'spec'        => $p['spec'],
+                    'price_cents' => $priceIsCents ? (int)round((float)$p['price']) : (int)round((float)$p['price'] * 100),
+                ];
             }
         }
 
@@ -378,7 +416,9 @@ final class UpstreamService
         if ($cfg['mock']) {
             return self::mockProvision($cfg, $productId, $opts);
         }
-        return self::httpProvision($cfg, $productId, $opts);
+        $api = self::mofang($cfg);
+        $opts['product_id'] = $productId;
+        return $api->provision($productId, $opts);
     }
 
     /** 实例操作：start/stop/restart/reset-password/reinstall/delete */
@@ -396,9 +436,10 @@ final class UpstreamService
             self::mockLog(['action' => 'instance-action', 'upstream' => $cfg['id'], 'external_id' => $externalId, 'op' => $action]);
             return ['ok' => true, 'detail' => 'MOCK 模式：操作已记录（' . $action . '）'];
         }
-        $result = self::httpInstanceAction($cfg, $externalId, $action, $opts);
-        if ($result === null) {
-            Response::fail('action_failed', '上游操作失败：' . self::lastHttpError(), 502);
+        $api = self::mofang($cfg);
+        $result = $api->instanceAction($externalId, $action, $opts);
+        if (empty($result['ok'])) {
+            Response::fail('action_failed', '上游操作失败：' . ($result['detail'] ?? $api->lastError()), 502);
         }
         return $result;
     }
@@ -416,20 +457,28 @@ final class UpstreamService
             return ['ok' => true, 'detail' => 'MOCK 模式：连接测试通过（未真实联网）'];
         }
         self::assertPublicBaseUrl($base);
-        $authMode = (string)($in['auth_mode'] ?? 'bearer');
+        $kind = (string)($in['kind'] ?? 'cloud');
+        $apiType = strtolower((string)($in['api_type'] ?? ''));
+        if (!in_array($apiType, ['v10', 'finance', 'whmcs'], true)) {
+            $apiType = $kind === 'finance' ? 'finance' : 'v10';
+        }
         $testCfg = [
-            'auth_mode' => in_array($authMode, ['bearer', 'basic', 'query', 'none'], true) ? $authMode : 'bearer',
+            'id' => 0,
+            'kind' => $kind,
+            'api_type' => $apiType,
+            'base_url' => $base,
+            'use_https' => $https ? 1 : 0,
             'api_user'  => (string)($in['api_user'] ?? ''),
             'api_key'   => (string)($in['api_key'] ?? ''),
         ];
-        $path = self::normalizeApiPath((string)($in['path_products'] ?? ''), '/api/v1/products');
-        $url = self::withQueryAuth(self::normalizeBase($base, $https) . $path, $testCfg);
-        $header = self::authHeader($testCfg);
-        $resp = self::httpGet($url, $header);
-        if ($resp === null) {
-            return ['ok' => false, 'detail' => self::lastHttpError()];
-        }
-        return ['ok' => true, 'detail' => '连接成功，上游有响应'];
+        $api = self::mofang($testCfg);
+        return $api->test();
+    }
+
+    /** v1.5：构造真实魔方 API 适配器 */
+    private static function mofang(array $cfg): MofangApi
+    {
+        return new MofangApi($cfg);
     }
 
     /* ==================== HTTP 客户端 ==================== */

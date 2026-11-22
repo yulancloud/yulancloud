@@ -23,13 +23,16 @@ CREATE TABLE IF NOT EXISTS upstreams (
   account_type  TEXT NOT NULL DEFAULT 'agent',        -- 账号类型：agent=代理商 / 普通
   use_https     INTEGER NOT NULL DEFAULT 0 CHECK (use_https IN (0, 1)),
   enabled       INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
-  -- v1.4.1：协议可配置（真实魔方云/财务 API 路径与鉴权各不相同）
+  -- v1.5：上游协议类型（v10=新魔方云/财务 v10 / finance=老财务 / whmcs=WHMCS 代理）
+  api_type      TEXT NOT NULL DEFAULT 'v10'
+                CHECK (api_type IN ('v10','finance','whmcs')),
+  -- v1.4.1：协议可配置（v1.5 默认路径已改为魔方 v10 真实端点）
   auth_mode     TEXT NOT NULL DEFAULT 'bearer'
                 CHECK (auth_mode IN ('bearer','basic','query','none')),  -- 鉴权方式
-  path_products TEXT NOT NULL DEFAULT '/api/v1/products',               -- 拉取产品路径
-  path_provision_cloud   TEXT NOT NULL DEFAULT '/api/v1/vm/create',      -- 云主机开通路径
-  path_provision_finance TEXT NOT NULL DEFAULT '/api/v1/orders',         -- 财务上游下单路径
-  path_action   TEXT NOT NULL DEFAULT '/api/v1/vm/{id}/{action}',        -- 实例操作路径（占位符 {id} {action}）
+  path_products TEXT NOT NULL DEFAULT '/api/v1/product',               -- 拉取产品路径（魔方 v10 真实）
+  path_provision_cloud   TEXT NOT NULL DEFAULT '/console/v1/cart',       -- 云主机开通（v10 加入购物车）
+  path_provision_finance TEXT NOT NULL DEFAULT '/cart/add_to_shop',      -- 财务上游下单（老财务）
+  path_action   TEXT NOT NULL DEFAULT '/provision/default',              -- 实例操作路径（v10 真实）
   price_is_cents INTEGER NOT NULL DEFAULT 0 CHECK (price_is_cents IN (0,1)), -- 上游价格单位：0=元(×100) 1=分
   remark        TEXT NOT NULL DEFAULT '',
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),

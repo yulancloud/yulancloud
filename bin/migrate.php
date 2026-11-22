@@ -490,21 +490,33 @@ try {
         $pdo->exec("ALTER TABLE products ADD COLUMN upstream_product_id TEXT NOT NULL DEFAULT ''");
     }
 
-    // v1.4.1：上游协议可配置（真实魔方云/财务 API 鉴权与路径各不相同）
+    // v1.4.1/v1.5：上游协议可配置。v1.5 新增 api_type 并把默认路径改为魔方 v10 真实端点。
     // CREATE TABLE IF NOT EXISTS 不会给已存在的表补列，故逐列幂等 ALTER。
     if (tableExists($pdo, 'upstreams')) {
         $upCols = [
+            'api_type'              => "TEXT NOT NULL DEFAULT 'v10'",
             'auth_mode'             => "TEXT NOT NULL DEFAULT 'bearer'",
-            'path_products'         => "TEXT NOT NULL DEFAULT '/api/v1/products'",
-            'path_provision_cloud'  => "TEXT NOT NULL DEFAULT '/api/v1/vm/create'",
-            'path_provision_finance'=> "TEXT NOT NULL DEFAULT '/api/v1/orders'",
-            'path_action'           => "TEXT NOT NULL DEFAULT '/api/v1/vm/{id}/{action}'",
+            'path_products'         => "TEXT NOT NULL DEFAULT '/api/v1/product'",
+            'path_provision_cloud'  => "TEXT NOT NULL DEFAULT '/console/v1/cart'",
+            'path_provision_finance'=> "TEXT NOT NULL DEFAULT '/cart/add_to_shop'",
+            'path_action'           => "TEXT NOT NULL DEFAULT '/provision/default'",
             'price_is_cents'        => "INTEGER NOT NULL DEFAULT 0",
         ];
         foreach ($upCols as $col => $def) {
             if (!columnExists($pdo, 'upstreams', $col)) {
                 $pdo->exec("ALTER TABLE upstreams ADD COLUMN {$col} {$def}");
             }
+        }
+        // v1.5：修正存量上游里 v1.4.x 自造的错误默认路径 → 魔方 v10 真实端点。
+        // 只改「值正好等于旧默认」的记录，不覆盖管理员手动改过的自定义路径。
+        $fixPaths = [
+            'path_products'          => ['/api/v1/products', '/api/v1/product'],
+            'path_provision_cloud'   => ['/api/v1/vm/create', '/console/v1/cart'],
+            'path_provision_finance' => ['/api/v1/orders', '/cart/add_to_shop'],
+            'path_action'            => ['/api/v1/vm/{id}/{action}', '/provision/default'],
+        ];
+        foreach ($fixPaths as $col => [$old, $new]) {
+            $pdo->prepare("UPDATE upstreams SET {$col} = ? WHERE {$col} = ?")->execute([$new, $old]);
         }
     }
 

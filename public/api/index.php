@@ -198,9 +198,9 @@ switch (true) {
             'status' => 'up',
             'time' => date('c'),
             'installed' => $installed,
-            'version' => '1.4.1',
+            'version' => '1.5.0',
             // 构建号：升级后用 curl /api/health 看这里即可确认服务器跑的是不是新代码
-            'build' => '20261121a',
+            'build' => '20261122a',
             'php' => PHP_VERSION,
         ]);
 
@@ -254,7 +254,7 @@ switch (true) {
         Response::ok([
             'plugins' => PluginRuntime::ids(),
             'assets'  => $slots,
-            'build'   => '20261121a',
+            'build'   => '20261122a',
             'diag'    => $diag,
         ]);
 

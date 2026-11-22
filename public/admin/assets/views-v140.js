@@ -184,7 +184,13 @@
             + '<select class="field" id="up-kind">'
             + '<option value="finance"' + (u.kind !== 'cloud' ? ' selected' : '') + '>魔方财务（对接上游）</option>'
             + '<option value="cloud"' + (u.kind === 'cloud' ? ' selected' : '') + '>魔方云 KVM</option>'
-            + '</select><div class="hint">决定开通时调用的 API 类型</div></div>'
+            + '</select><div class="hint">决定商品类型归属</div></div>'
+            + '<div class="fld"><label for="up-apitype">上游协议</label>'
+            + '<select class="field" id="up-apitype">'
+            + '<option value="v10"' + ((u.api_type || 'v10') === 'v10' ? ' selected' : '') + '>智简魔方 v10 / 魔方云（推荐）</option>'
+            + '<option value="finance"' + (u.api_type === 'finance' ? ' selected' : '') + '>老版本魔方财务（zjmf_api）</option>'
+            + '<option value="whmcs"' + (u.api_type === 'whmcs' ? ' selected' : '') + '>WHMCS 代理插件</option>'
+            + '</select><div class="hint">v1.5 内置真实协议适配器，选对应协议即可，一般无需手填路径</div></div>'
             + fld('up-base', '接口地址', u.base_url || '', 'IP 或域名，可带 http:// 或 https://', 200)
             + fld('up-user', '账号', u.api_user || '', '上游注册的账号（手机/邮箱）', 64)
             + fld('up-fin', '财务标识', u.financial_id || '', '魔方云接口的财务标识，可留空', 128)
@@ -213,17 +219,20 @@
             + '<option value="basic"' + (u.auth_mode === 'basic' ? ' selected' : '') + '>Basic（账号:密钥）</option>'
             + '<option value="query"' + (u.auth_mode === 'query' ? ' selected' : '') + '>URL 参数（username/token）</option>'
             + '<option value="none"' + (u.auth_mode === 'none' ? ' selected' : '') + '>无鉴权</option>'
-            + '</select><div class="hint">按真实上游 API 文档选择；魔方系多用 Basic</div></div>'
+            + '</select><div class="hint">真实协议由适配器自动完成「登录换 JWT + Bearer」；此项仅自定义/兼容特殊上游时生效</div></div>'
             + '<div class="fld"><label for="up-priceunit">上游价格单位</label>'
             + '<select class="field" id="up-priceunit">'
             + '<option value="0"' + (!u.price_is_cents ? ' selected' : '') + '>元（自动 ×100 转分）</option>'
             + '<option value="1"' + (u.price_is_cents ? ' selected' : '') + '>分（直接使用）</option>'
             + '</select><div class="hint">同步产品时上游返回的价格单位</div></div>'
-            + fld('up-path-products', '产品列表路径', u.path_products || '/api/v1/products', '如 /api/v1/products', 200)
-            + fld('up-path-cloud', '云主机开通路径', u.path_provision_cloud || '/api/v1/vm/create', '魔方云 KVM 开通接口', 200)
-            + fld('up-path-fin', '财务下单路径', u.path_provision_finance || '/api/v1/orders', '财务上游下单接口', 200)
-            + fld('up-path-action', '实例操作路径', u.path_action || '/api/v1/vm/{id}/{action}', '支持 {id} {action} 占位符', 200)
             + fld('up-remark', '备注', u.remark || '', '可留空', 200)
+            + '<div class="fld" style="grid-column:1/-1"><details><summary style="cursor:pointer;color:var(--ink-3);font-size:12px">高级：自定义接口路径（一般无需修改）</summary>'
+            + '<div class="form-grid" style="grid-template-columns:1fr 1fr;margin-top:8px">'
+            + fld('up-path-products', '产品列表路径', u.path_products || '/api/v1/product', 'v10: /api/v1/product；老财务: /api/product/list', 200)
+            + fld('up-path-cloud', '云主机开通路径', u.path_provision_cloud || '/console/v1/cart', 'v10: /console/v1/cart', 200)
+            + fld('up-path-fin', '财务下单路径', u.path_provision_finance || '/cart/add_to_shop', '老财务: /cart/add_to_shop', 200)
+            + fld('up-path-action', '实例操作路径', u.path_action || '/provision/default', 'v10: /provision/default', 200)
+            + '</div></details></div>'
             + '</div>'
             + '<div style="margin-top:14px;display:flex;gap:8px">'
             + '<button class="btn btn--ghost" id="up-test" type="button">测试连接</button>'
@@ -253,6 +262,7 @@
             return {
               name: document.getElementById('up-name').value.trim(),
               kind: document.getElementById('up-kind').value,
+              api_type: document.getElementById('up-apitype').value,
               base_url: document.getElementById('up-base').value.trim(),
               api_user: document.getElementById('up-user').value.trim(),
               financial_id: document.getElementById('up-fin').value.trim(),

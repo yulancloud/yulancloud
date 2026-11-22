@@ -29,8 +29,8 @@ final class UpdateService
     private const RELEASE_HOST = 'github.com';
 
     /** 当前版本 */
-    private const CURRENT_VERSION = '1.4.1';
-    private const CURRENT_BUILD   = '20261121a';
+    private const CURRENT_VERSION = '1.5.0';
+    private const CURRENT_BUILD   = '20261122a';
 
     /** 升级时“完全保留”的顶层路径前缀 */
     private const PRESERVE_PREFIX = [
@@ -388,7 +388,7 @@ final class UpdateService
     /** HTTP GET（curl 优先，支持二进制）；$timeout<=0 时用默认值 */
     private static function httpGet(string $url, bool $binary = false, int $timeout = 0): ?string
     {
-        $ua = 'YulanFinance-Updater/1.4.1';
+        $ua = 'YulanFinance-Updater/1.5.0';
         $connectTimeout = $timeout > 0 ? min(8, $timeout) : 8;
         $totalTimeout   = $timeout > 0 ? $timeout : 120;
         if (function_exists('curl_init')) {
