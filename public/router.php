@@ -119,7 +119,7 @@ if (preg_match('#/(install|admin|console)/?$#', $uri) === 1) {
 // 例如 /admin 不带斜杠时，浏览器把 <script src="assets/api.js"> 算成 /assets/api.js（404），
 // 导致后台 JS 全部加载失败、guard() 无法运行、页面不跳登录页。
 // 这里 301 补斜杠，并保留查询串（如安装向导可能存在的参数）。
-if (preg_match('#^/(install|admin|console)$#', $uri) === 1) {
+if (preg_match('#^/(install|admin|console|innovative)$#', $uri) === 1) {
     $qs = isset($_SERVER['QUERY_STRING']) && $_SERVER['QUERY_STRING'] !== '' ? '?' . $_SERVER['QUERY_STRING'] : '';
     http_response_code(301);
     header('Location: ' . $uri . '/' . $qs);
@@ -246,6 +246,24 @@ if ($rel !== '/' && is_file($file)) {
 
 // 目录或根路径 → 首页
 if ($rel === '/' || is_dir($file)) {
+    // v1.6：后台「站点设置 → 界面风格」为 innovative 时，根路径呈现创新主题首页。
+    // 读取失败（未安装/表缺失）时安全回退经典首页，绝不让首页白屏。
+    $theme = 'classic';
+    try {
+        require_once dirname(__DIR__) . '/src/Db.php';
+        require_once dirname(__DIR__) . '/src/SettingsService.php';
+        $theme = SettingsService::get('site_theme');
+    } catch (Throwable $e) {
+        $theme = 'classic';
+    }
+    // 只在站点根路径跳转；/innovative/ 等子目录直接走下面的 index.html 输出，避免自跳死循环。
+    if ($rel === '/' && $theme === 'innovative' && is_file(__DIR__ . '/innovative/index.html')) {
+        // 创新首页相对资源（api/、assets/）位于 /innovative/ 下，需改写基址。
+        // 这里用 302 跳到 /innovative/，让浏览器按正确目录解析资源，避免相对路径 404。
+        $qs = isset($_SERVER['QUERY_STRING']) && $_SERVER['QUERY_STRING'] !== '' ? '?' . $_SERVER['QUERY_STRING'] : '';
+        header('Location: /innovative/' . $qs);
+        return true;
+    }
     $index = rtrim($file, '/') . '/index.html';
     if (is_file($index)) {
         header('Content-Type: text/html; charset=utf-8');

@@ -710,6 +710,11 @@
    * 6b. 站点设置（前台标题/副标题/版权等文案）
    * ============================================================= */
   var SITE_FIELDS = [
+    // v1.6：界面风格 + 双品牌
+    { key: 'site_theme',       label: '界面风格',     hint: '经典=手作器物风格（默认）；创新=智简魔方 TDesign 蓝白风格。保存后访问首页即切换', max: 20, type: 'select',
+      options: [{ value: 'classic', label: '经典（当前风格）' }, { value: 'innovative', label: '创新（智简魔方风格）' }] },
+    { key: 'brand_primary',    label: '主品牌名',     hint: '创新主题登录页展示，如「欲蓝财务魔方」', max: 40, type: 'text' },
+    { key: 'brand_secondary',  label: '副品牌名',     hint: '创新主题登录页展示，如「魔方财务」', max: 40, type: 'text' },
     { key: 'site_name',        label: '站点名称',     hint: '顶栏品牌名，如「欲蓝财务」', max: 40, type: 'text' },
     { key: 'site_name_en',     label: '英文名',       hint: '品牌副标，如「YULAN」', max: 40, type: 'text' },
     { key: 'hero_eyebrow',     label: '首页眉标',     hint: '主标题上方的小字，如「EST. 2019 · 上海静安」', max: 60, type: 'text' },
@@ -752,6 +757,57 @@
     { key: 'epay_return_url', group: 'epay', label: '同步返回地址', hint: '留空则按站点基址自动生成', max: 300, type: 'text' },
     { key: 'epay_expire_minutes', group: 'epay', label: '未支付自动关单（分钟）', hint: '留空则沿用默认 120，范围 1–1440', max: 6, type: 'text' }
   ];
+
+  /* v1.6：支付方式配置框架。易支付是底座；官方渠道需企业资质，未配置自动回退。 */
+  var PAY_METHOD_FIELDS = [
+    { key: 'pay_wxpay_h5_enabled', label: '微信 H5', hint: '0/留空=关闭，1=开启。经易支付 wxpay + 手机端，无需额外资质', max: 1, type: 'select',
+      options: [{ value: '', label: '关闭' }, { value: '1', label: '开启' }] },
+    { key: 'pay_wxpay_official_enabled', label: '微信官方支付', hint: '需企业商户号；未配置完整时下单自动回退易支付', max: 1, type: 'select',
+      options: [{ value: '', label: '关闭' }, { value: '1', label: '开启' }] },
+    { key: 'pay_wxpay_official_appid', label: '微信 AppID', hint: '微信支付商户平台 AppID', max: 64, type: 'text' },
+    { key: 'pay_wxpay_official_mchid', label: '微信商户号', hint: '微信支付商户号 mchid', max: 64, type: 'text' },
+    { key: 'pay_wxpay_official_key', label: '微信 APIv3 密钥', hint: '32 位密钥；出于安全不回显，留空表示不修改', max: 256, type: 'password' },
+    { key: 'pay_alipay_enabled', label: '支付宝官方支付', hint: '需支付宝开放平台应用；未配置完整时自动回退易支付', max: 1, type: 'select',
+      options: [{ value: '', label: '关闭' }, { value: '1', label: '开启' }] },
+    { key: 'pay_alipay_f2f_enabled', label: '支付宝当面付', hint: '扫码支付，复用支付宝官方资质', max: 1, type: 'select',
+      options: [{ value: '', label: '关闭' }, { value: '1', label: '开启' }] },
+    { key: 'pay_alipay_appid', label: '支付宝 AppID', hint: '支付宝开放平台应用 AppID', max: 64, type: 'text' },
+    { key: 'pay_alipay_private_key', label: '支付宝应用私钥', hint: 'RSA2 应用私钥；出于安全不回显，留空表示不修改', max: 4096, type: 'textarea' },
+    { key: 'pay_alipay_public_key', label: '支付宝公钥', hint: '支付宝公钥；出于安全不回显，留空表示不修改', max: 4096, type: 'textarea' }
+  ];
+
+  var payMethods = {
+    title: '支付方式（5 种）',
+    render: function (host) {
+      host.innerHTML =
+        '<div class="notice"><span>本站支持 <b>易支付（微信/支付宝）、微信 H5、微信官方支付、支付宝支付、支付宝当面付</b> 五种方式，另有余额支付。<b>易支付</b>是底座，配好 PID/KEY/网关即可用；<b>官方渠道</b>需要企业商户资质（AppID + 密钥），未配置完整时前台自动置灰，用户下单会回退到易支付对应通道——保证永远不会出现「付不了款」。凭据只写不读，出于安全不回显，留空表示不修改。</span></div>' +
+        '<div class="panel-card">' +
+          '<div class="panel-card__head"><h2>支付渠道配置</h2>' +
+            '<div class="panel-card__actions"><button class="btn btn--primary js-save-paym" type="button">保存支付配置</button></div>' +
+          '</div>' +
+          '<div class="panel-card__body">' +
+            '<div class="notice" style="margin-bottom:14px"><span>当前生效的支付方式（前台展示）：</span><div id="payMethodsLive" style="margin-top:6px">正在读取…</div></div>' +
+            '<div class="form-grid" style="grid-template-columns:1fr 1fr">' + PAY_METHOD_FIELDS.map(settingsFieldHtml).join('') + '</div>' +
+          '</div>' +
+        '</div>';
+
+      function fill(s) { fillSettingsFields(PAY_METHOD_FIELDS, s); }
+      API.settings().then(function (r) { fill(r.settings || {}); }).catch(function (err) { U.toast(err.message, 'error'); });
+
+      API.paymentMethods().then(function (r) {
+        var box = document.getElementById('payMethodsLive');
+        if (!box) return;
+        box.innerHTML = (r.methods || []).map(function (m) {
+          return '<span class="badge ' + (m.ready ? 'badge--ok' : 'badge--warn') + '" style="margin-right:8px;display:inline-block;margin-bottom:6px">' +
+            U.esc(m.label) + (m.ready ? '' : '（' + U.esc(m.note || '未配置') + '）') + '</span>';
+        }).join('');
+      }).catch(function () {});
+
+      Array.prototype.forEach.call(host.querySelectorAll('.js-save-paym'), function (b) {
+        b.addEventListener('click', function () { saveSettingsFields(b, PAY_METHOD_FIELDS, '支付方式配置已保存，立即生效'); });
+      });
+    }
+  };
 
   /* 运费：独立菜单页。单位「元」，留空 = 沿用 config/config.php 的默认（¥12 / 满 ¥299 包邮）。
    * 服务端 SettingsService::shippingRule() 换算成分后参与下单计算，前台 /api/site 同步下发。 */
@@ -1676,6 +1732,7 @@
     yulanApis: yulanApis,
     update: updateView,
     epay: epaySettings,
+    payMethods: payMethods,
     extensions: extensions,
     settings: settings,
     audit: audit

@@ -125,6 +125,9 @@
       return request('POST', '/password', { old_password: oldPw, new_password: newPw });
     },
 
+    /* ---- v1.6 支付方式清单 ---- */
+    paymentMethods: function () { return request('GET', '/payment/methods'); },
+
     /* ---- 站点设置（标题/副标题/版权等文案） ---- */
     settings: function () { return request('GET', '/settings'); },
     saveSettings: function (settings) { return request('PUT', '/settings', { settings: settings }); },

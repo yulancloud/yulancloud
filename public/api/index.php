@@ -107,6 +107,7 @@ require_once $SRC . '/OrderService.php';
 require_once $SRC . '/EPay.php';
 require_once $SRC . '/OrderStateMachine.php';
 require_once $SRC . '/PaymentService.php';
+require_once $SRC . '/PaymentMethodService.php';  // v1.6 支付方式聚合
 require_once $SRC . '/Audit.php';
 require_once $SRC . '/AdminAuth.php';
 require_once $SRC . '/AdminService.php';
@@ -198,9 +199,9 @@ switch (true) {
             'status' => 'up',
             'time' => date('c'),
             'installed' => $installed,
-            'version' => '1.5.0',
+            'version' => '1.6.0',
             // 构建号：升级后用 curl /api/health 看这里即可确认服务器跑的是不是新代码
-            'build' => '20261122a',
+            'build' => '20261128a',
             'php' => PHP_VERSION,
         ]);
 
@@ -254,7 +255,7 @@ switch (true) {
         Response::ok([
             'plugins' => PluginRuntime::ids(),
             'assets'  => $slots,
-            'build'   => '20261122a',
+            'build'   => '20261128a',
             'diag'    => $diag,
         ]);
 
@@ -527,6 +528,11 @@ switch (true) {
     case $path === '/api/payment/info' && $method === 'GET':
         RateLimiter::guard('read');
         Response::ok(PaymentService::publicInfo());
+
+    // v1.6：支付方式清单（易支付/微信H5/微信官方/支付宝/当面付/余额），未配置自动回退
+    case $path === '/api/payment/methods' && $method === 'GET':
+        RateLimiter::guard('read');
+        Response::ok(['methods' => PaymentMethodService::publicInfo()]);
 
     // 创建订单（v5：必须登录）
     case $path === '/api/orders' && $method === 'POST':
@@ -1009,6 +1015,11 @@ switch (true) {
         Audit::log($u['id'], $u['username'], 'review_status', (string)$id, $status);
         Response::ok(['id' => $id, 'status' => $status]);
 
+    // ---- v1.6：支付方式清单（后台配置页读取当前生效状态）----
+    case $path === '/api/admin/payment/methods' && $method === 'GET':
+        AdminAuth::require();
+        Response::ok(['methods' => PaymentMethodService::publicInfo()]);
+
     // ---- 站点设置 ----
     case $path === '/api/admin/settings' && $method === 'GET':
         AdminAuth::require();
@@ -1378,13 +1389,13 @@ switch (true) {
     case str_starts_with($path, '/api/'):
         $known = [
             '/api/health', '/api/catalog', '/api/products', '/api/categories',
-            '/api/orders', '/api/orders/quote', '/api/payment/info', '/api/pay/notify', '/api/pay/return',
+            '/api/orders', '/api/orders/quote', '/api/payment/info', '/api/payment/methods', '/api/pay/notify', '/api/pay/return',
             '/api/site', '/api/theme.css', '/api/features', '/api/install', '/api/install/status',
             '/api/admin/extensions', '/api/admin/extensions/upload',
             '/api/admin/login', '/api/admin/logout', '/api/admin/me', '/api/admin/dashboard',
             '/api/admin/products', '/api/admin/categories', '/api/admin/orders',
             '/api/admin/orders/close-expired', '/api/admin/reviews', '/api/admin/password',
-            '/api/admin/audit', '/api/admin/settings', '/api/admin/settings/reset',
+            '/api/admin/audit', '/api/admin/settings', '/api/admin/settings/reset', '/api/admin/payment/methods',
             '/api/admin/users',
             '/api/admin/yulan-apis', '/api/admin/update/check', '/api/admin/update/run',
             '/api/admin/upstreams', '/api/admin/upstreams/test', '/api/admin/cloud-vms',

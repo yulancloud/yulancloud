@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0052d9">
+<title>控制台 · 欲蓝财务</title>
+<link rel="stylesheet" href="assets/innovative.css?v=20261128a">
+</head>
+<body class="innovative">
+<div class="iv-console">
+  <!-- 左侧菜单 -->
+  <aside class="iv-side">
+    <a class="iv-side__brand" href="index.html">
+      <span class="iv-brand__logo" data-brand-mark style="width:30px;height:30px;font-size:14px">欲</span>
+      <span data-site-name>欲蓝财务</span>
+    </a>
+    <nav class="iv-side__nav" id="ivSideNav">
+      <div class="iv-side__group">概览</div>
+      <div class="iv-side__item is-active" data-view="home" onclick="go('home')">
+        <svg class="iv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span>控制台首页</span>
+      </div>
+      <div class="iv-side__group">业务</div>
+      <div class="iv-side__item" data-view="orders" onclick="go('orders')">
+        <svg class="iv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h12l2 7H4z"/><path d="M4 9v13h16V9"/><path d="M9 13h6"/></svg><span>我的订单</span>
+      </div>
+      <div class="iv-side__item" data-view="cloud" onclick="go('cloud')">
+        <svg class="iv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18a4 4 0 010-8 6 6 0 0111-3 4 4 0 011 8z"/></svg><span>我的云主机</span>
+      </div>
+      <div class="iv-side__item" data-view="yulan" onclick="go('yulan')">
+        <svg class="iv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v16"/></svg><span>财务魔方账号</span>
+      </div>
+      <div class="iv-side__item" data-view="tickets" onclick="go('tickets')">
+        <svg class="iv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H8l-4 4z"/></svg><span>工单支持</span>
+      </div>
+      <div class="iv-side__group">账户</div>
+      <div class="iv-side__item" data-view="balance" onclick="go('balance')">
+        <svg class="iv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg><span>余额与充值</span>
+      </div>
+      <div class="iv-side__item" data-view="profile" onclick="go('profile')">
+        <svg class="iv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></svg><span>账号设置</span>
+      </div>
+    </nav>
+    <div class="iv-side__foot">© 2026 欲蓝财务 · 控制台</div>
+  </aside>
+
+  <!-- 主区 -->
+  <div class="iv-main">
+    <div class="iv-mtop">
+      <div class="iv-mtop__title" id="ivViewTitle">控制台首页</div>
+      <div class="iv-mtop__spacer"></div>
+      <div class="iv-mtop__user">
+        <span class="iv-avatar" id="ivAvatar">用</span>
+        <span id="ivTopName" style="color:#4b5563"></span>
+        <button class="iv-btn iv-btn--ghost iv-btn--sm" onclick="logout()">退出</button>
+      </div>
+    </div>
+    <div class="iv-content" id="ivView"><div class="iv-loading">正在加载…</div></div>
+  </div>
+</div>
+
+<!-- 充值弹窗 -->
+<div id="ivModal" style="display:none;position:fixed;inset:0;background:rgba(0,20,40,.45);z-index:100;align-items:center;justify-content:center;padding:20px">
+  <div class="iv-panel" style="max-width:480px;width:100%;margin:0">
+    <div class="iv-panel__head"><h3 id="ivModalTitle">充值</h3><button class="iv-btn iv-btn--ghost iv-btn--sm" onclick="closeModal()">关闭</button></div>
+    <div id="ivModalBody"></div>
+  </div>
+</div>
+<div class="iv-toast-wrap" id="ivToast"></div>
+
+<script src="assets/innovative-console.js?v=20261128a"></script>
+</body>
+</html>

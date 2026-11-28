@@ -1,0 +1,242 @@
+/* ==========================================================================
+ * 创新主题（innovative）—— 智简魔方 v10 / TDesign 设计语言
+ * 配色来自智简魔方真实源码 tdesign.min.css 与 admin/css/index.css：
+ *   品牌蓝 --td-brand-color-8: #0052d9；亮蓝 #266fe8 / #019EF7 / #42C2FB
+ *   成功绿 #50CD89、危险红 #F1416C、信息蓝 #019EF7
+ *   白底卡片、3-6px 圆角、轻阴影 0 2px 6px rgba(0,0,0,.04)
+ * 说明：与经典主题完全隔离，只在 site_theme=innovative 时加载，互不污染。
+ * ========================================================================== */
+:root {
+  --iv-brand: #0052d9;
+  --iv-brand-6: #4787f0;
+  --iv-brand-5: #699ef5;
+  --iv-cyan: #019EF7;
+  --iv-sky: #42C2FB;
+  --iv-success: #50CD89;
+  --iv-danger: #F1416C;
+  --iv-bg: #f3f5f9;
+  --iv-card: #ffffff;
+  --iv-text: rgba(0, 0, 0, .9);
+  --iv-text-2: #4b5563;
+  --iv-muted: #9696a3;
+  --iv-border: #e7e9f0;
+  --iv-radius: 6px;
+  --iv-shadow: 0 2px 10px rgba(0, 0, 0, .05);
+  --iv-side: #001f3d;
+  --iv-side-2: #0a2b52;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body.innovative {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--iv-bg);
+  color: var(--iv-text);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.innovative a { color: inherit; text-decoration: none; }
+.innovative button, .innovative input, .innovative select, .innovative textarea { font-family: inherit; font-size: inherit; }
+.innovative .iv-wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px; }
+.innovative .iv-card { background: var(--iv-card); border-radius: var(--iv-radius); box-shadow: var(--iv-shadow); }
+.innovative .iv-muted { color: var(--iv-muted); }
+.innovative .iv-num { font-variant-numeric: tabular-nums; }
+
+/* ---------- 顶部导航 ---------- */
+.iv-top {
+  position: sticky; top: 0; z-index: 50;
+  height: 64px; background: #fff; border-bottom: 1px solid var(--iv-border);
+  display: flex; align-items: center;
+}
+.iv-top__in { width: 100%; max-width: 1240px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; gap: 28px; }
+.iv-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--iv-text); }
+.iv-brand__logo {
+  width: 34px; height: 34px; border-radius: 9px; flex: none;
+  background: linear-gradient(135deg, var(--iv-brand), var(--iv-cyan));
+  display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 16px;
+  box-shadow: 0 4px 10px rgba(0, 82, 217, .28);
+}
+.iv-brand__en { color: var(--iv-muted); font-size: 12px; font-weight: 600; letter-spacing: .08em; }
+.iv-nav { display: flex; align-items: center; gap: 4px; flex: 1; }
+.iv-nav a { padding: 8px 14px; border-radius: 6px; color: var(--iv-text-2); font-weight: 500; }
+.iv-nav a:hover, .iv-nav a.is-active { background: #eef4ff; color: var(--iv-brand); }
+.iv-top__spacer { flex: 1; }
+.iv-btn {
+  border: none; border-radius: 6px; padding: 9px 18px; cursor: pointer; font-weight: 600;
+  transition: transform .05s, box-shadow .15s, background .15s;
+}
+.iv-btn:active { transform: translateY(1px); }
+.iv-btn--primary { background: var(--iv-brand); color: #fff; box-shadow: 0 3px 8px rgba(0, 82, 217, .25); }
+.iv-btn--primary:hover { background: #0046c0; }
+.iv-btn--light { background: #eef4ff; color: var(--iv-brand); }
+.iv-btn--light:hover { background: #e0ebff; }
+.iv-btn--ghost { background: #fff; color: var(--iv-text-2); border: 1px solid var(--iv-border); }
+.iv-btn--sm { padding: 5px 12px; font-size: 12px; }
+.iv-btn--block { width: 100%; }
+.iv-link { color: var(--iv-brand); cursor: pointer; }
+
+/* ---------- Hero ---------- */
+.iv-hero {
+  background: linear-gradient(135deg, #001f3d 0%, #0a3b7a 45%, #0052d9 100%);
+  color: #fff; padding: 72px 0 120px; position: relative; overflow: hidden;
+}
+.iv-hero::after {
+  content: ""; position: absolute; right: -80px; top: -120px; width: 460px; height: 460px;
+  background: radial-gradient(circle, rgba(66,194,251,.35), transparent 62%); border-radius: 50%;
+}
+.iv-hero__in { position: relative; z-index: 2; }
+.iv-hero__eyebrow { display: inline-block; padding: 5px 14px; border: 1px solid rgba(255,255,255,.3); border-radius: 20px; font-size: 12px; letter-spacing: .1em; color: #cfe3ff; margin-bottom: 22px; }
+.iv-hero h1 { font-size: 44px; line-height: 1.25; margin: 0 0 18px; font-weight: 800; letter-spacing: -.01em; }
+.iv-hero p { font-size: 16px; color: #d5e6ff; max-width: 620px; margin: 0 0 30px; }
+.iv-hero__actions { display: flex; gap: 12px; }
+.iv-hero .iv-btn--light { background: #fff; color: var(--iv-brand); }
+.iv-hero__stats { display: flex; gap: 36px; margin-top: 46px; }
+.iv-hero__stat b { display: block; font-size: 30px; font-weight: 800; }
+.iv-hero__stat span { color: #bcd6ff; font-size: 13px; }
+
+/* ---------- 通用区块 ---------- */
+.iv-section { padding: 56px 0; }
+.iv-section--overlap { margin-top: -70px; position: relative; z-index: 3; }
+.iv-sec-head { margin-bottom: 26px; }
+.iv-sec-head h2 { font-size: 26px; margin: 0 0 6px; font-weight: 800; }
+.iv-sec-head p { color: var(--iv-muted); margin: 0; }
+
+/* 统计卡（智简魔方 index.css 风格） */
+.iv-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.iv-stat { background: #fff; border-radius: var(--iv-radius); box-shadow: var(--iv-shadow); padding: 24px 26px; }
+.iv-stat__title { color: var(--iv-muted); font-size: 13px; }
+.iv-stat__num { font-size: 32px; font-weight: 800; margin-top: 8px; color: var(--iv-text); }
+.iv-stat__trend { display: inline-block; margin-left: 8px; font-size: 12px; padding: 1px 7px; border-radius: 3px; font-weight: 500; vertical-align: middle; }
+.iv-trend-up { color: var(--iv-danger); background: #fef0f3; }   /* 中国习惯：涨=红 */
+.iv-trend-down { color: var(--iv-success); background: #f1fbf6; } /* 跌=绿 */
+
+/* 产品卡（云主机 / 财务魔方） */
+.iv-prod-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.iv-prod { background: #fff; border-radius: var(--iv-radius); box-shadow: var(--iv-shadow); overflow: hidden; display: flex; flex-direction: column; transition: transform .15s, box-shadow .15s; }
+.iv-prod:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.09); }
+.iv-prod__top { height: 120px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 34px; font-weight: 800; }
+.iv-prod__top--cloud { background: linear-gradient(135deg, #0052d9, #42c2fb); }
+.iv-prod__top--finance { background: linear-gradient(135deg, #0a3b7a, #019ef7); }
+.iv-prod__top--generic { background: linear-gradient(135deg, #5b6b8c, #96bbf8); }
+.iv-prod__body { padding: 20px 22px; flex: 1; display: flex; flex-direction: column; }
+.iv-prod__name { font-size: 17px; font-weight: 700; margin: 0 0 6px; }
+.iv-prod__spec { color: var(--iv-muted); font-size: 13px; margin: 0 0 16px; flex: 1; }
+.iv-prod__price { color: var(--iv-brand); font-size: 24px; font-weight: 800; }
+.iv-prod__price small { font-size: 13px; font-weight: 500; color: var(--iv-muted); }
+.iv-prod__foot { padding: 14px 22px; border-top: 1px solid var(--iv-border); display: flex; align-items: center; justify-content: space-between; }
+.iv-tag { display: inline-block; padding: 2px 9px; border-radius: 4px; font-size: 12px; background: #eef4ff; color: var(--iv-brand); }
+
+/* ---------- 页脚 ---------- */
+.iv-foot { background: #001f3d; color: #9fb6d4; padding: 40px 0 24px; margin-top: 40px; }
+.iv-foot a { color: #cfe3ff; }
+.iv-foot__grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 30px; }
+.iv-foot h4 { color: #fff; margin: 0 0 12px; font-size: 14px; }
+.iv-foot__bottom { border-top: 1px solid rgba(255,255,255,.1); margin-top: 28px; padding-top: 18px; display: flex; justify-content: space-between; font-size: 12px; }
+
+/* ==========================================================================
+ * 控制台（智简魔方 clientarea home.php 布局：左侧菜单 + 顶栏 + 主内容卡片）
+ * ========================================================================== */
+.iv-console { min-height: 100vh; background: var(--iv-bg); display: flex; }
+.iv-side { width: 232px; background: var(--iv-side); color: #cfe0f5; flex: none; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+.iv-side__brand { height: 64px; display: flex; align-items: center; gap: 10px; padding: 0 22px; border-bottom: 1px solid rgba(255,255,255,.08); color: #fff; font-weight: 700; font-size: 16px; }
+.iv-side__nav { flex: 1; overflow-y: auto; padding: 14px 12px; }
+.iv-side__group { color: #6b86a8; font-size: 11px; letter-spacing: .1em; padding: 14px 12px 6px; }
+.iv-side__item { display: flex; align-items: center; gap: 11px; padding: 11px 14px; border-radius: 6px; cursor: pointer; color: #b9cfe8; font-weight: 500; margin-bottom: 2px; }
+.iv-side__item .iv-ico { width: 18px; height: 18px; flex: none; opacity: .85; }
+.iv-side__item:hover { background: rgba(255,255,255,.07); color: #fff; }
+.iv-side__item.is-active { background: var(--iv-brand); color: #fff; box-shadow: 0 3px 10px rgba(0,82,217,.4); }
+.iv-side__foot { padding: 14px 20px; border-top: 1px solid rgba(255,255,255,.08); font-size: 12px; color: #6b86a8; }
+.iv-main { flex: 1; min-width: 0; }
+.iv-mtop { height: 64px; background: #fff; border-bottom: 1px solid var(--iv-border); display: flex; align-items: center; padding: 0 28px; gap: 16px; }
+.iv-mtop__title { font-size: 17px; font-weight: 700; }
+.iv-mtop__spacer { flex: 1; }
+.iv-mtop__user { display: flex; align-items: center; gap: 10px; }
+.iv-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--iv-brand), var(--iv-cyan)); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.iv-content { padding: 26px 28px; }
+.iv-panel { background: #fff; border-radius: var(--iv-radius); box-shadow: var(--iv-shadow); padding: 24px 26px; margin-bottom: 20px; }
+.iv-panel h3 { margin: 0 0 18px; font-size: 17px; font-weight: 700; }
+.iv-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.iv-panel__head h3 { margin: 0; }
+
+/* 控制台首页：用户信息 + 余额 + 统计 (home.php) */
+.iv-userbar { display: flex; align-items: center; gap: 20px; }
+.iv-userbar__hello b { font-size: 20px; }
+.iv-userbar__hello p { margin: 2px 0 0; color: var(--iv-muted); font-size: 13px; }
+.iv-divider { width: 1px; align-self: stretch; background: var(--iv-border); margin: 0 8px; }
+.iv-userbar__meta { font-size: 13px; color: var(--iv-text-2); }
+.iv-balance-row { display: flex; align-items: center; gap: 24px; }
+.iv-balance-main { font-size: 38px; font-weight: 800; color: var(--iv-brand); }
+.iv-ring { width: 108px; height: 108px; border-radius: 50%; background: conic-gradient(var(--iv-cyan) var(--p, 40%), #eef1f6 0); display: flex; align-items: center; justify-content: center; flex: none; }
+.iv-ring__in { width: 84px; height: 84px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: var(--iv-text-2); }
+.iv-consume-row { display: flex; gap: 30px; }
+.iv-consume-row .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
+
+/* 表格 */
+.iv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.iv-table th, .iv-table td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--iv-border); }
+.iv-table th { color: var(--iv-muted); font-weight: 600; background: #fafbfd; }
+.iv-table tr:last-child td { border-bottom: none; }
+.iv-table tbody tr:hover { background: #fafbfd; }
+.iv-badge { display: inline-block; padding: 2px 9px; border-radius: 4px; font-size: 12px; }
+.iv-badge--green { color: var(--iv-success); background: #f1fbf6; }
+.iv-badge--blue { color: var(--iv-brand); background: #eef4ff; }
+.iv-badge--gray { color: var(--iv-muted); background: #f0f1f4; }
+.iv-badge--red { color: var(--iv-danger); background: #fef0f3; }
+
+/* 表单 */
+.iv-form-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.iv-field { margin-bottom: 16px; }
+.iv-field label { display: block; font-size: 13px; color: var(--iv-text-2); margin-bottom: 6px; font-weight: 500; }
+.iv-field input, .iv-field select, .iv-field textarea {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--iv-border); border-radius: 6px; outline: none; background: #fff; color: var(--iv-text);
+}
+.iv-field input:focus, .iv-field select:focus, .iv-field textarea:focus { border-color: var(--iv-brand); box-shadow: 0 0 0 3px rgba(0,82,217,.1); }
+.iv-hint { font-size: 12px; color: var(--iv-muted); margin-top: 5px; }
+
+/* 支付选项卡 */
+.iv-pay-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.iv-pay-opt { border: 1px solid var(--iv-border); border-radius: 8px; padding: 14px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; }
+.iv-pay-opt:hover { border-color: var(--iv-brand-5); }
+.iv-pay-opt.is-active { border-color: var(--iv-brand); background: #f5f8ff; box-shadow: 0 0 0 2px rgba(0,82,217,.1); }
+.iv-pay-opt.is-disabled { opacity: .5; cursor: not-allowed; }
+.iv-pay-opt__ic { width: 34px; height: 34px; border-radius: 8px; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex: none; }
+.iv-pay-opt__t { font-weight: 600; }
+.iv-pay-opt__n { font-size: 12px; color: var(--iv-muted); }
+
+/* 登录 / 注册（智简魔方 login.css / regist.css 风格：左侧品牌 + 右侧表单） */
+.iv-auth { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="%23f5f8ff"/><stop offset="1" stop-color="%23eaf1ff"/></linearGradient></defs><rect width="1440" height="900" fill="url(%23g)"/></svg>') center/cover; padding: 24px; }
+.iv-auth__box { width: 100%; max-width: 920px; min-height: 560px; background: #fff; border-radius: 14px; box-shadow: 0 18px 60px rgba(0,31,61,.14); display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; }
+.iv-auth__brand { background: linear-gradient(150deg, #001f3d, #0052d9 70%, #019ef7); color: #fff; padding: 56px 44px; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; }
+.iv-auth__brand::after { content: ""; position: absolute; width: 340px; height: 340px; border: 1px solid rgba(255,255,255,.14); border-radius: 50%; right: -120px; bottom: -120px; }
+.iv-auth__brand h1 { font-size: 34px; margin: 0 0 12px; font-weight: 800; }
+.iv-auth__brand p { color: #cfe3ff; font-size: 15px; line-height: 1.8; }
+.iv-auth__form { padding: 56px 48px; display: flex; flex-direction: column; justify-content: center; }
+.iv-auth__form h2 { font-size: 26px; margin: 0 0 6px; }
+.iv-auth__tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--iv-border); margin: 20px 0 26px; }
+.iv-auth__tab { padding: 0 2px 12px; cursor: pointer; color: var(--iv-muted); font-weight: 600; border-bottom: 2px solid transparent; }
+.iv-auth__tab.is-active { color: var(--iv-brand); border-color: var(--iv-brand); }
+.iv-auth__code { display: flex; gap: 10px; }
+.iv-auth__code input { flex: 1; }
+.iv-auth__code button { white-space: nowrap; }
+
+/* 空状态 / 加载 */
+.iv-state { text-align: center; padding: 48px 20px; color: var(--iv-muted); }
+.iv-state b { display: block; color: var(--iv-text); font-size: 16px; margin-bottom: 6px; }
+.iv-loading { color: var(--iv-muted); padding: 30px; text-align: center; }
+
+/* Toast */
+.iv-toast-wrap { position: fixed; top: 78px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.iv-toast { background: #001f3d; color: #fff; padding: 10px 20px; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.2); font-size: 13px; }
+.iv-toast--err { background: var(--iv-danger); }
+
+/* 响应式 */
+@media (max-width: 900px) {
+  .iv-stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .iv-prod-grid { grid-template-columns: 1fr; }
+  .iv-hero h1 { font-size: 30px; }
+  .iv-side { width: 64px; }
+  .iv-side__brand span, .iv-side__item span, .iv-side__group, .iv-side__foot { display: none; }
+  .iv-side__item { justify-content: center; }
+  .iv-auth__box { grid-template-columns: 1fr; }
+  .iv-auth__brand { display: none; }
+}

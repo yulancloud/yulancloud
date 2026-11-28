@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0052d9">
+<title data-site-title>欲蓝财务 · 魔方云与财务服务</title>
+<link rel="stylesheet" href="assets/innovative.css?v=20261128a">
+</head>
+<body class="innovative">
+
+<!-- 顶栏 -->
+<header class="iv-top">
+  <div class="iv-top__in">
+    <a class="iv-brand" href="index.html">
+      <span class="iv-brand__logo" data-brand-mark>欲</span>
+      <span data-site-name>欲蓝财务</span>
+      <span class="iv-brand__en" data-site-name-en>YULAN</span>
+    </a>
+    <nav class="iv-nav">
+      <a href="index.html" class="is-active">首页</a>
+      <a href="#products">产品中心</a>
+      <a href="#about">关于我们</a>
+    </nav>
+    <div class="iv-top__spacer"></div>
+    <div id="ivTopUser"></div>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="iv-hero">
+  <div class="iv-wrap iv-hero__in">
+    <span class="iv-hero__eyebrow" data-site-eyebrow>STABLE · SECURE · SCALABLE</span>
+    <h1 data-site-hero>稳定可靠的云与财务服务<br>让业务增长更简单</h1>
+    <p data-site-sub>魔方云 KVM 云服务器、魔方财务对接、自动化开通——从下单到交付，全流程自动化。</p>
+    <div class="iv-hero__actions">
+      <a class="iv-btn iv-btn--light" href="#products">查看产品</a>
+      <a class="iv-btn iv-btn--ghost" href="console.html" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.3)">进入控制台</a>
+    </div>
+    <div class="iv-hero__stats">
+      <div class="iv-hero__stat"><b class="iv-num">99.9%</b><span>服务可用性</span></div>
+      <div class="iv-hero__stat"><b class="iv-num">7×24</b><span>自动交付</span></div>
+      <div class="iv-hero__stat"><b class="iv-num">多线路</b><span>网络接入</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 统计卡（智简魔方 index.css 风格） -->
+<section class="iv-section iv-section--overlap">
+  <div class="iv-wrap">
+    <div class="iv-stat-grid" id="ivStats">
+      <div class="iv-stat"><div class="iv-stat__title">在售产品</div><div class="iv-stat__num iv-num" id="stProducts">—</div></div>
+      <div class="iv-stat"><div class="iv-stat__title">服务节点</div><div class="iv-stat__num iv-num">多线路</div></div>
+      <div class="iv-stat"><div class="iv-stat__title">交付方式</div><div class="iv-stat__num">自动化</div></div>
+      <div class="iv-stat"><div class="iv-stat__title">技术支持</div><div class="iv-stat__num">7×24</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 产品中心 -->
+<section class="iv-section" id="products">
+  <div class="iv-wrap">
+    <div class="iv-sec-head">
+      <h2>产品中心</h2>
+      <p>云主机与财务服务，下单后自动开通，无需人工等待。</p>
+    </div>
+    <div class="iv-prod-grid" id="ivProducts">
+      <div class="iv-loading">正在加载产品…</div>
+    </div>
+  </div>
+</section>
+
+<!-- 关于 -->
+<section class="iv-section" id="about" style="background:#fff">
+  <div class="iv-wrap">
+    <div class="iv-sec-head"><h2>为什么选择我们</h2><p>把复杂留给自己，把简单交给用户。</p></div>
+    <div class="iv-stat-grid">
+      <div class="iv-panel" style="margin:0"><h3>⚡ 自动交付</h3><p class="iv-muted">支付成功后系统自动在上游开通实例，分钟级交付，无需人工介入。</p></div>
+      <div class="iv-panel" style="margin:0"><h3>🔒 账户安全</h3><p class="iv-muted">邮箱验证码登录、会话隔离、敏感操作限流，守护每一次访问。</p></div>
+      <div class="iv-panel" style="margin:0"><h3>💳 多种支付</h3><p class="iv-muted">易支付、微信、支付宝、当面付等多种方式，随需配置。</p></div>
+      <div class="iv-panel" style="margin:0"><h3>🎫 工单支持</h3><p class="iv-muted">内置工单系统，问题随时提交，进度实时可查。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 页脚 -->
+<footer class="iv-foot">
+  <div class="iv-wrap">
+    <div class="iv-foot__grid">
+      <div><a class="iv-brand" href="index.html" style="color:#fff"><span class="iv-brand__logo" data-brand-mark>欲</span><span data-site-name>欲蓝财务</span></a><p style="margin-top:14px" data-site-note>稳定、安全、可扩展的云与财务服务。</p></div>
+      <div><h4>产品</h4><a href="#products">魔方云 KVM</a><br><a href="#products">魔方财务</a></div>
+      <div><h4>支持</h4><a href="console.html#/tickets">工单</a><br><a href="mailto:support@example.com" data-site-support>联系客服</a></div>
+    </div>
+    <div class="iv-foot__bottom"><span data-site-copyright>© 2026 欲蓝财务</span><span data-site-icp></span></div>
+  </div>
+</footer>
+
+<div class="iv-toast-wrap" id="ivToast"></div>
+
+<script>
+(function () {
+  'use strict';
+  var API = (function () {
+    var base = document.querySelector('meta[name="shop-api-base"]')?.content || '';
+    return base || (location.pathname.replace(/\/innovative\/.*$/, '') + '/api');
+  })();
+  function req(method, path, body) {
+    var opt = { method: method, headers: {} };
+    if (body !== undefined) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+    return fetch(API + path, opt).then(function (r) { return r.text().then(function (t) {
+      var j = null; try { j = JSON.parse(t); } catch (e) {}
+      if (!r.ok || !j || !j.ok) throw new Error((j && j.error && j.error.message) || ('HTTP ' + r.status));
+      return j.data;
+    }); });
+  }
+  function toast(msg, err) {
+    var d = document.createElement('div');
+    d.className = 'iv-toast' + (err ? ' iv-toast--err' : '');
+    d.textContent = msg;
+    document.getElementById('ivToast').appendChild(d);
+    setTimeout(function () { d.remove(); }, 2600);
+  }
+  function txt(sel, v) { var el = document.querySelector(sel); if (el && v) el.textContent = v; }
+
+  // 站点文案
+  req('GET', '/site').then(function (s) {
+    txt('[data-site-name]', s.site_name);
+    txt('[data-site-name-en]', s.site_name_en);
+    txt('[data-site-title]', s.meta_title || (s.site_name + ' · 魔方云与财务服务'));
+    txt('[data-site-copyright]', s.footer_copyright);
+    txt('[data-site-support]', s.support_email ? ('邮件：' + s.support_email) : '联系客服');
+    var mark = document.querySelector('[data-brand-mark]');
+    if (mark && s.site_name) mark.textContent = s.site_name.charAt(0);
+    document.title = s.meta_title || (s.site_name + ' · 魔方云');
+  }).catch(function () {});
+
+  // 登录态
+  req('GET', '/console/me').then(function (me) {
+    document.getElementById('ivTopUser').innerHTML =
+      '<span style="color:#4b5563;margin-right:14px">你好，' + (me.username || '用户') + '</span>' +
+      '<a class="iv-btn iv-btn--primary iv-btn--sm" href="console.html">控制台</a>';
+  }).catch(function () {
+    document.getElementById('ivTopUser').innerHTML =
+      '<a class="iv-btn iv-btn--ghost iv-btn--sm" href="login.html">登录 / 注册</a> ' +
+      '<a class="iv-btn iv-btn--primary iv-btn--sm" href="login.html">免费注册</a>';
+  });
+
+  // 产品
+  req('GET', '/products?limit=24').then(function (d) {
+    var list = (d.products || d.items || []);
+    txt('#stProducts', String(list.length));
+    var host = document.getElementById('ivProducts');
+    if (!list.length) {
+      host.innerHTML = '<div class="iv-state" style="grid-column:1/-1"><b>暂无在售产品</b>店主尚未上架商品，敬请期待。</div>';
+      return;
+    }
+    host.innerHTML = list.map(function (p) {
+      var price = (p.price_cents != null) ? (p.price_cents / 100) : (p.price || 0);
+      var isCloud = p.type === 'cloud';
+      var isYulan = p.type === 'yulan';
+      var cls = isCloud ? 'cloud' : (isYulan ? 'finance' : 'generic');
+      var ic = isCloud ? '云' : (isYulan ? '财' : '商');
+      var priceCny = '¥' + Number(price).toFixed(2);
+      return '<a class="iv-prod" href="../product.html?id=' + encodeURIComponent(p.id) + '">' +
+        '<div class="iv-prod__top iv-prod__top--' + cls + '">' + ic + '</div>' +
+        '<div class="iv-prod__body">' +
+          '<h3 class="iv-prod__name">' + esc(p.name) + '</h3>' +
+          '<p class="iv-prod__spec">' + esc(p.sub || p.description || (isCloud ? 'KVM 云服务器，自动开通' : '在线服务，自动交付')) + '</p>' +
+          '<div class="iv-prod__price">' + priceCny + ' <small>起</small></div>' +
+        '</div>' +
+        '<div class="iv-prod__foot"><span class="iv-tag">' + (isCloud ? '魔方云' : (isYulan ? '魔方财务' : '商品')) + '</span><span class="iv-link">查看详情 →</span></div>' +
+      '</a>';
+    }).join('');
+  }).catch(function (e) {
+    document.getElementById('ivProducts').innerHTML = '<div class="iv-state" style="grid-column:1/-1"><b>产品加载失败</b>' + esc(e.message) + '</div>';
+  });
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+})();
+</script>
+</body>
+</html>

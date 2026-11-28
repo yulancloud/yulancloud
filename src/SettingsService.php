@@ -92,6 +92,28 @@ final class SettingsService
         // ---------- v1.4：对接上游（魔方财务 / 魔方云）模拟模式 ----------
         'upstream_mock'     => ['default' => '0', 'max' => 1],   // 1 = 模拟（不真连上游，写队列文件并返回演示交付信息，便于测试）
 
+        // ---------- v1.6：前台界面风格（classic=经典手作风 / innovative=创新·智简魔方 TDesign 风） ----------
+        'site_theme'        => ['default' => 'classic', 'max' => 20],
+
+        // ---------- v1.6：双品牌共存（欲蓝财务魔方 / 魔方财务）----------
+        'brand_primary'     => ['default' => '欲蓝财务魔方', 'max' => 40],
+        'brand_secondary'   => ['default' => '魔方财务', 'max' => 40],
+
+        // ---------- v1.6：支付方式配置框架 ----------
+        // 说明：微信官方 / 支付宝官方 / 当面付需要企业商户资质（appid + 密钥/证书）。
+        // 未配置时前台自动隐藏该方式并回退到已配置的易支付通道，保证始终有可用支付。
+        // 所有密钥类字段「只写不读」，绝不进入 publicPayload / adminPayload。
+        'pay_wxpay_h5_enabled'      => ['default' => '', 'max' => 1],   // 微信 H5（经易支付 wxpay + device=mobile）
+        'pay_wxpay_official_enabled'=> ['default' => '', 'max' => 1],   // 微信官方支付（直连）
+        'pay_wxpay_official_mchid'  => ['default' => '', 'max' => 64],  // 微信商户号
+        'pay_wxpay_official_appid'  => ['default' => '', 'max' => 64],
+        'pay_wxpay_official_key'    => ['default' => '', 'max' => 256], // 微信 APIv3 密钥（只写不读）
+        'pay_alipay_enabled'        => ['default' => '', 'max' => 1],   // 支付宝官方（直连）
+        'pay_alipay_appid'          => ['default' => '', 'max' => 64],
+        'pay_alipay_private_key'    => ['default' => '', 'max' => 4096],// 应用私钥（只写不读）
+        'pay_alipay_public_key'     => ['default' => '', 'max' => 4096],// 支付宝公钥
+        'pay_alipay_f2f_enabled'    => ['default' => '', 'max' => 1],   // 支付宝当面付（直连）
+
         // ---------- 虚拟商品自动发货：逐商品配置 ----------
         // 每个虚拟商品的发货内容存于各自商品的 delivery_template / product_delivery_fields，
         // 由 DeliveryService::renderContent() 渲染；后台「虚拟商品发货」菜单逐个设置，互不影响。
@@ -193,6 +215,26 @@ final class SettingsService
                 && !in_array($v, ['0', '1'], true)) {
                 throw new InvalidArgumentException('设置项「' . $k . '」只能是 0 或 1');
             }
+            // v1.6：界面风格只允许 classic / innovative
+            if ($k === 'site_theme' && !in_array($v, ['classic', 'innovative'], true)) {
+                throw new InvalidArgumentException('界面风格只能是 classic 或 innovative');
+            }
+            // v1.6：支付方式开关三态（''=跟随配置，'1'=强制开，'0'=强制关）
+            if (in_array($k, [
+                'pay_wxpay_h5_enabled', 'pay_wxpay_official_enabled',
+                'pay_alipay_enabled', 'pay_alipay_f2f_enabled',
+            ], true) && !in_array($v, ['', '0', '1'], true)) {
+                throw new InvalidArgumentException('设置项「' . $k . '」只能是 0 或 1');
+            }
+            // v1.6：支付密钥「只写不读」——留空表示不修改，'__CLEAR__' 才清空
+            if (in_array($k, ['pay_wxpay_official_key', 'pay_alipay_private_key', 'pay_alipay_public_key'], true)) {
+                if ($v === '') {
+                    continue;
+                }
+                if ($v === '__CLEAR__') {
+                    $v = '';
+                }
+            }
             // 运费两项必须是非负金额（最多两位小数）。留空表示沿用服务器默认值，
             // 非法输入直接拒绝写入，避免脏数据让服务端算出离谱的运费。
             if ($k === 'ship_fee' || $k === 'free_ship_threshold') {
@@ -238,7 +280,8 @@ final class SettingsService
                AND key NOT LIKE 'ship_%'
                AND key <> 'free_ship_threshold'
                AND key NOT LIKE 'virtual_%'
-               AND key NOT LIKE 'yulan_%'"
+               AND key NOT LIKE 'yulan_%'
+               AND key NOT LIKE 'pay_%'"
         );
         return self::adminPayload();
     }
@@ -287,6 +330,11 @@ final class SettingsService
         // 欲蓝服务器口令同样「只写不读」，只回传是否已配置，绝不回传明文
         $s['yulan_server_pass_set'] = ($s['yulan_server_pass'] !== '');
         $s['yulan_server_pass'] = '';
+        // v1.6：支付密钥「只写不读」——只回传是否已配置，绝不回传明文
+        foreach (['pay_wxpay_official_key', 'pay_alipay_private_key', 'pay_alipay_public_key'] as $secretKey) {
+            $s[$secretKey . '_set'] = ($s[$secretKey] !== '');
+            $s[$secretKey] = '';
+        }
         // 后台「运费设置」页据此展示最终生效值（含留空回退后的默认值）
         $s['shipping'] = self::shippingRule();
         return $s;
@@ -320,6 +368,10 @@ final class SettingsService
             'nav_show_all'      => $s['nav_show_all'],
             'nav_show_cat'      => $s['nav_show_cat'],
             'nav_show_featured' => $s['nav_show_featured'],
+            // v1.6：界面风格 + 双品牌（前台据此切换主题与品牌呈现，均无敏感信息）
+            'site_theme'       => $s['site_theme'],
+            'brand_primary'    => $s['brand_primary'],
+            'brand_secondary'  => $s['brand_secondary'],
             // 运费规则（分）：前台购物袋据此预览运费，与服务端下单计算完全一致
             'ship_fee_cents'            => $rule['ship_fee_cents'],
             'free_ship_threshold_cents' => $rule['free_ship_threshold_cents'],
